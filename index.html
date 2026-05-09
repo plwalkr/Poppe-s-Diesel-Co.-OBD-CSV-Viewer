@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer v0.6</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer v0.7</title>
   <style>
     :root {
       --app-bg: #0f1412;
@@ -378,6 +378,30 @@
       font-size: .78rem;
     }
 
+    .measure-track-row {
+      display: grid;
+      grid-template-columns: 10px minmax(0, 1.2fr) repeat(3, minmax(54px, .8fr));
+      gap: 7px;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      padding-top: 6px;
+      margin-top: 2px;
+      font-size: .78rem;
+    }
+
+    .measure-track-row span {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .track-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
     .series-item,
     .note-item {
       display: grid;
@@ -583,9 +607,9 @@
     <div class="header-inner">
       <div>
         <h1>Poppe's Diesel Co. OBD CSV Viewer</h1>
-        <div class="subtitle">Offline CSV upload → multiple graph lines → preset themes → editable graph line colors → drag-box zoom → Pico-style draggable rulers.</div>
+        <div class="subtitle">Offline CSV upload → multiple graph lines → preset themes → editable graph line colors → drag-box zoom + Pico-style rulers together.</div>
       </div>
-      <div class="version">v0.6 Pico-style rulers</div>
+      <div class="version">v0.7 rulers + zoom together</div>
     </div>
   </header>
 
@@ -671,7 +695,7 @@
             <input id="measureMode" type="checkbox" />
             <div>
               <label for="measureMode">Show draggable rulers</label>
-              <div class="hint">Turn on, then drag the colored edge tabs. Vertical rulers measure X change. Horizontal rulers measure Y change.</div>
+              <div class="hint">Turn on, then drag the colored edge tabs. You can still drag empty graph space to zoom while rulers are visible.</div>
             </div>
           </div>
 
@@ -681,7 +705,7 @@
 
           <div class="measure-readout" id="measureReadout">
             <div><strong>Rulers hidden.</strong></div>
-            <div class="muted">Turn on rulers to show colored cursor tabs, value bubbles, ΔX, ΔY, slope, and percent change.</div>
+            <div class="muted">Turn on rulers to show colored cursor tabs, value bubbles, ΔX, ΔY, slope, percent change, and tracked line values.</div>
           </div>
         </section>
 
@@ -1602,9 +1626,8 @@
           updateRulerFromCanvasPoint(activeRuler, point);
           renderMeasurement();
           drawGraph();
+          return;
         }
-
-        return;
       }
 
       if (!isInsidePlot(point.x, point.y)) return;
@@ -1624,10 +1647,16 @@
         return;
       }
 
-      if (!isDraggingZoom) return;
+      if (isDraggingZoom) {
+        dragEnd = point;
+        drawGraph();
+        return;
+      }
 
-      dragEnd = point;
-      drawGraph();
+      if (els.measureMode.checked && graphBounds) {
+        const hit = hitTestRuler(point);
+        els.chart.style.cursor = hit ? (hit.startsWith("v") ? "ew-resize" : "ns-resize") : "crosshair";
+      }
     }
 
     function handleChartMouseUp(event) {
@@ -1821,7 +1850,7 @@
       if (!els.measureMode.checked) {
         els.measureReadout.innerHTML =
           '<div><strong>Rulers hidden.</strong></div>' +
-          '<div class="muted">Turn on rulers to show colored cursor tabs, value bubbles, ΔX, ΔY, slope, and percent change.</div>';
+          '<div class="muted">Turn on rulers to show colored cursor tabs, value bubbles, ΔX, ΔY, slope, percent change, and tracked line values.</div>';
         return;
       }
 
@@ -1838,6 +1867,9 @@
       const dy = rulerCursors.hB.value - rulerCursors.hA.value;
       const slope = dx === 0 ? NaN : dy / dx;
       const percentChange = rulerCursors.hA.value === 0 ? NaN : (dy / Math.abs(rulerCursors.hA.value)) * 100;
+      const inverseDelta = dx === 0 ? NaN : 1 / Math.abs(dx);
+      const cyclesPerMinute = dx === 0 ? NaN : 60 / Math.abs(dx);
+      const trackingRows = buildTrackingRowsHtml();
 
       els.measureReadout.innerHTML =
         '<div><strong>Pico-Style Ruler Readout</strong></div>' +
@@ -1847,7 +1879,9 @@
         ' &nbsp; <span style="color:' + rulerCursors.hB.color + '"><strong>Y-B:</strong></span> ' + formatNumber(rulerCursors.hB.value) + '</div>' +
         '<div><strong>ΔX:</strong> ' + formatNumber(dx) + ' &nbsp; <strong>ΔY:</strong> ' + formatNumber(dy) + '</div>' +
         '<div><strong>Slope:</strong> ' + formatNumber(slope) + ' per X unit &nbsp; <strong>Y change:</strong> ' + formatNumber(percentChange) + '%</div>' +
-        '<div class="muted">Drag the colored edge tabs or ruler lines directly on the graph.</div>';
+        '<div><strong>1/ΔX:</strong> ' + formatNumber(inverseDelta) + ' &nbsp; <strong>Cycles/min if X=seconds:</strong> ' + formatNumber(cyclesPerMinute) + '</div>' +
+        trackingRows +
+        '<div class="muted">Drag colored rulers to measure. Drag empty graph space to zoom. Tracked values use interpolation between nearby samples.</div>';
     }
 
     function drawMeasurements(ctx) {
@@ -1865,6 +1899,7 @@
       drawHorizontalRuler(ctx, hA.value, hA.color, "Y-A");
       drawHorizontalRuler(ctx, hB.value, hB.color, "Y-B");
 
+      drawTrackingDots(ctx);
       drawRulerDeltaBox(ctx);
     }
 
@@ -1983,12 +2018,121 @@
       ctx.fillText(text, bx + paddingX, by + height / 2 + .5);
     }
 
+    function getVisibleLineSeriesForTracking() {
+      const xCol = els.xColumn.value || "__rowNumber";
+
+      return graphLines
+        .filter(line => line.visible)
+        .map(line => ({
+          line,
+          points: getSeries(xCol, line.column)
+        }))
+        .filter(series => series.points.length >= 2);
+    }
+
+    function interpolateSeriesValue(points, xValue) {
+      if (!points || points.length === 0) return null;
+
+      const sorted = points.slice().sort((a, b) => a.x - b.x);
+
+      if (xValue <= sorted[0].x) {
+        return { value: sorted[0].y, xLabel: sorted[0].xLabel, exact: false };
+      }
+
+      const last = sorted[sorted.length - 1];
+      if (xValue >= last.x) {
+        return { value: last.y, xLabel: last.xLabel, exact: false };
+      }
+
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const a = sorted[i];
+        const b = sorted[i + 1];
+
+        if (xValue === a.x) return { value: a.y, xLabel: a.xLabel, exact: true };
+        if (xValue >= a.x && xValue <= b.x) {
+          const span = b.x - a.x;
+          const ratio = span === 0 ? 0 : (xValue - a.x) / span;
+          const value = a.y + (b.y - a.y) * ratio;
+          return { value, xLabel: a.xLabel + " → " + b.xLabel, exact: false };
+        }
+      }
+
+      return null;
+    }
+
+    function buildTrackingRowsHtml() {
+      if (!graphBounds || !rulerCursors.initialized) return "";
+
+      const seriesList = getVisibleLineSeriesForTracking().slice(0, 8);
+
+      if (!seriesList.length) return "";
+
+      let html = '<div class="muted" style="margin-top:6px;">Tracked line values at X-A and X-B:</div>';
+
+      seriesList.forEach(series => {
+        const a = interpolateSeriesValue(series.points, rulerCursors.vA.value);
+        const b = interpolateSeriesValue(series.points, rulerCursors.vB.value);
+
+        if (!a || !b) return;
+
+        const delta = b.value - a.value;
+
+        html +=
+          '<div class="measure-track-row">' +
+          '<i class="track-dot" style="background:' + series.line.color + '"></i>' +
+          '<span title="' + escapeHtml(series.line.column) + '">' + escapeHtml(series.line.column) + '</span>' +
+          '<span>A ' + formatNumber(a.value) + '</span>' +
+          '<span>B ' + formatNumber(b.value) + '</span>' +
+          '<span>Δ ' + formatNumber(delta) + '</span>' +
+          '</div>';
+      });
+
+      if (getVisibleLineSeriesForTracking().length > 8) {
+        html += '<div class="muted">Showing first 8 active lines.</div>';
+      }
+
+      return html;
+    }
+
+    function drawTrackingDots(ctx) {
+      if (!graphBounds || !rulerCursors.initialized) return;
+
+      const seriesList = getVisibleLineSeriesForTracking();
+
+      seriesList.forEach(series => {
+        const a = interpolateSeriesValue(series.points, rulerCursors.vA.value);
+        const b = interpolateSeriesValue(series.points, rulerCursors.vB.value);
+
+        if (a) drawTrackingDot(ctx, rulerCursors.vA.value, a.value, series.line.color);
+        if (b) drawTrackingDot(ctx, rulerCursors.vB.value, b.value, series.line.color);
+      });
+    }
+
+    function drawTrackingDot(ctx, xValue, yValue, color) {
+      const screen = dataToScreen(xValue, yValue);
+      if (!screen || !isInsidePlot(screen.x, screen.y)) return;
+
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.strokeStyle = getCss("--chart-bg", "#0b100d");
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.arc(screen.x, screen.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
     function drawRulerDeltaBox(ctx) {
       const dx = rulerCursors.vB.value - rulerCursors.vA.value;
       const dy = rulerCursors.hB.value - rulerCursors.hA.value;
       const slope = dx === 0 ? NaN : dy / dx;
 
-      const text = "ΔX " + formatNumber(dx) + "   ΔY " + formatNumber(dy) + "   Slope " + formatNumber(slope);
+      const inverseDelta = dx === 0 ? NaN : 1 / Math.abs(dx);
+      const cyclesPerMinute = dx === 0 ? NaN : 60 / Math.abs(dx);
+      const text = "ΔX " + formatNumber(dx) + "   ΔY " + formatNumber(dy) + "   1/ΔX " + formatNumber(inverseDelta) + "   RPM* " + formatNumber(cyclesPerMinute);
       const pad = graphBounds.pad;
       const x = pad.left + 12;
       const y = pad.top + graphBounds.chartH - 36;
@@ -2337,12 +2481,15 @@
         const dy = rulerCursors.hB.value - rulerCursors.hA.value;
         const slope = dx === 0 ? NaN : dy / dx;
         const percentChange = rulerCursors.hA.value === 0 ? NaN : (dy / Math.abs(rulerCursors.hA.value)) * 100;
+        const inverseDelta = dx === 0 ? NaN : 1 / Math.abs(dx);
+        const cyclesPerMinute = dx === 0 ? NaN : 60 / Math.abs(dx);
 
         parts.push(
           "<strong>Ruler Measurement:</strong><br>" +
           "X-A: " + formatNumber(rulerCursors.vA.value) + " · X-B: " + formatNumber(rulerCursors.vB.value) + "<br>" +
           "Y-A: " + formatNumber(rulerCursors.hA.value) + " · Y-B: " + formatNumber(rulerCursors.hB.value) + "<br>" +
-          "ΔX: " + formatNumber(dx) + " · ΔY: " + formatNumber(dy) + " · Slope: " + formatNumber(slope) + " · Y Change: " + formatNumber(percentChange) + "%"
+          "ΔX: " + formatNumber(dx) + " · ΔY: " + formatNumber(dy) + " · Slope: " + formatNumber(slope) + " · Y Change: " + formatNumber(percentChange) + "%<br>" +
+          "1/ΔX: " + formatNumber(inverseDelta) + " · Cycles/min if X=seconds: " + formatNumber(cyclesPerMinute)
         );
       }
 
