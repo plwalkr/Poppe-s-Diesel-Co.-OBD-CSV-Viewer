@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer v0.5</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer v0.6</title>
   <style>
     :root {
       --app-bg: #0f1412;
@@ -583,9 +583,9 @@
     <div class="header-inner">
       <div>
         <h1>Poppe's Diesel Co. OBD CSV Viewer</h1>
-        <div class="subtitle">Offline CSV upload → multiple graph lines → preset themes → editable graph line colors → drag-box zoom → ruler measurements → subtle graph notes.</div>
+        <div class="subtitle">Offline CSV upload → multiple graph lines → preset themes → editable graph line colors → drag-box zoom → Pico-style draggable rulers.</div>
       </div>
-      <div class="version">v0.5 ruler measurements</div>
+      <div class="version">v0.6 Pico-style rulers</div>
     </div>
   </header>
 
@@ -665,23 +665,23 @@
         </section>
 
         <section class="card">
-          <h2>4. Ruler Measurements</h2>
+          <h2>4. Pico-Style Rulers</h2>
 
           <div class="toggle-row">
             <input id="measureMode" type="checkbox" />
             <div>
-              <label for="measureMode">Measurement ruler mode</label>
-              <div class="hint">Turn on, then click near two plotted points. The graph will draw vertical and horizontal rulers and calculate the difference.</div>
+              <label for="measureMode">Show draggable rulers</label>
+              <div class="hint">Turn on, then drag the colored edge tabs. Vertical rulers measure X change. Horizontal rulers measure Y change.</div>
             </div>
           </div>
 
           <div class="button-row">
-            <button id="clearMeasureBtn" class="secondary" disabled>Clear Rulers</button>
+            <button id="clearMeasureBtn" class="secondary" disabled>Reset Rulers</button>
           </div>
 
           <div class="measure-readout" id="measureReadout">
-            <div><strong>No ruler points selected.</strong></div>
-            <div class="muted">Point A and Point B will calculate ΔX, ΔY, slope, and percent change.</div>
+            <div><strong>Rulers hidden.</strong></div>
+            <div class="muted">Turn on rulers to show colored cursor tabs, value bubbles, ΔX, ΔY, slope, and percent change.</div>
           </div>
         </section>
 
@@ -834,7 +834,14 @@
     let isDraggingZoom = false;
     let dragStart = null;
     let dragEnd = null;
-    let measurePoints = [];
+    let activeRuler = null;
+    let rulerCursors = {
+      initialized: false,
+      vA: { value: null, color: "#68d391", label: "X-A" },
+      vB: { value: null, color: "#90cdf4", label: "X-B" },
+      hA: { value: null, color: "#f6ad55", label: "Y-A" },
+      hB: { value: null, color: "#f687b3", label: "Y-B" }
+    };
 
     const defaultPalette = [
       "#68d391", "#90cdf4", "#f6ad55", "#fc8181", "#b794f4",
@@ -896,12 +903,21 @@
     els.measureMode.addEventListener("change", () => {
       if (els.measureMode.checked) {
         els.noteMode.checked = false;
-        setGraphStatus("Measurement mode on. Click two plotted points to place rulers.", "good");
+        ensureRulersInitialized();
+        renderMeasurement();
+        setGraphStatus("Rulers on. Drag the colored edge tabs to measure the graph.", "good");
+      } else {
+        activeRuler = null;
+        renderMeasurement();
       }
+      drawGraph();
     });
     els.noteMode.addEventListener("change", () => {
       if (els.noteMode.checked) {
         els.measureMode.checked = false;
+        activeRuler = null;
+        renderMeasurement();
+        drawGraph();
       }
     });
     els.clearMeasureBtn.addEventListener("click", clearMeasurement);
@@ -950,7 +966,7 @@
           isDraggingZoom = false;
           dragStart = null;
           dragEnd = null;
-          measurePoints = [];
+          resetRulerState();
           renderMeasurement();
 
           populateDropdowns();
@@ -1111,7 +1127,7 @@
       isDraggingZoom = false;
       dragStart = null;
       dragEnd = null;
-      measurePoints = [];
+      resetRulerState();
       renderMeasurement();
       renderSeriesList();
       renderNotesList();
@@ -1376,6 +1392,7 @@
       renderStatsTable(lineSeries);
       updateTitles(lineSeries, xCol);
       updateZoomStatus();
+      renderMeasurement();
 
       if (!zoomRange) {
         setGraphStatus("Graph drawn with " + lineSeries.length + " active line(s).", "good");
@@ -1576,6 +1593,20 @@
 
       const point = getCanvasPoint(event);
 
+      if (els.measureMode.checked) {
+        ensureRulersInitialized();
+        const hit = hitTestRuler(point);
+
+        if (hit) {
+          activeRuler = hit;
+          updateRulerFromCanvasPoint(activeRuler, point);
+          renderMeasurement();
+          drawGraph();
+        }
+
+        return;
+      }
+
       if (!isInsidePlot(point.x, point.y)) return;
 
       isDraggingZoom = true;
@@ -1584,13 +1615,30 @@
     }
 
     function handleChartMouseMove(event) {
+      const point = getCanvasPoint(event);
+
+      if (activeRuler) {
+        updateRulerFromCanvasPoint(activeRuler, point);
+        renderMeasurement();
+        drawGraph();
+        return;
+      }
+
       if (!isDraggingZoom) return;
 
-      dragEnd = getCanvasPoint(event);
+      dragEnd = point;
       drawGraph();
     }
 
     function handleChartMouseUp(event) {
+      if (activeRuler) {
+        updateRulerFromCanvasPoint(activeRuler, getCanvasPoint(event));
+        activeRuler = null;
+        renderMeasurement();
+        drawGraph();
+        return;
+      }
+
       if (!isDraggingZoom || !dragStart) return;
 
       dragEnd = getCanvasPoint(event);
@@ -1607,9 +1655,7 @@
         dragStart = null;
         dragEnd = null;
 
-        if (els.measureMode.checked) {
-          addMeasurementPointAtCanvasPoint(clickPoint);
-        } else if (els.noteMode.checked) {
+        if (els.noteMode.checked) {
           addNoteAtCanvasPoint(clickPoint);
         }
 
@@ -1640,42 +1686,19 @@
     }
 
     function handleChartMouseLeave() {
+      if (activeRuler) {
+        activeRuler = null;
+        renderMeasurement();
+        drawGraph();
+        return;
+      }
+
       if (!isDraggingZoom) return;
 
       isDraggingZoom = false;
       dragStart = null;
       dragEnd = null;
       drawGraph();
-    }
-
-    function addMeasurementPointAtCanvasPoint(point) {
-      if (!els.measureMode.checked || !lastRenderPoints.length) return;
-
-      const nearest = findNearestRenderPoint(point, 42);
-
-      if (!nearest) {
-        setGraphStatus("Click closer to a plotted line point to set a ruler point.", "warn");
-        return;
-      }
-
-      const measurePoint = {
-        lineId: nearest.lineId,
-        column: nearest.column,
-        color: nearest.color,
-        x: nearest.x,
-        y: nearest.yValue,
-        xLabel: nearest.xLabel
-      };
-
-      if (measurePoints.length >= 2) {
-        measurePoints = [measurePoint];
-        setGraphStatus("Point A set. Click Point B for measurement.", "good");
-      } else {
-        measurePoints.push(measurePoint);
-        setGraphStatus(measurePoints.length === 1 ? "Point A set. Click Point B." : "Point B set. Ruler measurement calculated.", "good");
-      }
-
-      renderMeasurement();
     }
 
     function findNearestRenderPoint(point, maxDistance) {
@@ -1696,117 +1719,297 @@
       return nearestDistance <= maxDistance ? nearest : null;
     }
 
+    function resetRulerState() {
+      activeRuler = null;
+      rulerCursors.initialized = false;
+      rulerCursors.vA.value = null;
+      rulerCursors.vB.value = null;
+      rulerCursors.hA.value = null;
+      rulerCursors.hB.value = null;
+    }
+
     function clearMeasurement() {
-      measurePoints = [];
+      resetRulerState();
+      ensureRulersInitialized();
       renderMeasurement();
       drawGraph();
     }
 
-    function renderMeasurement() {
-      if (!els.measureReadout) return;
+    function ensureRulersInitialized() {
+      if (!graphBounds) return;
 
-      els.clearMeasureBtn.disabled = measurePoints.length === 0;
+      const xSpan = graphBounds.maxX - graphBounds.minX;
+      const ySpan = graphBounds.maxY - graphBounds.minY;
 
-      if (!measurePoints.length) {
-        els.measureReadout.innerHTML =
-          '<div><strong>No ruler points selected.</strong></div>' +
-          '<div class="muted">Point A and Point B will calculate ΔX, ΔY, slope, and percent change.</div>';
-        return;
+      if (!rulerCursors.initialized || rulerCursors.vA.value === null) {
+        rulerCursors.vA.value = graphBounds.minX + xSpan * 0.25;
+        rulerCursors.vB.value = graphBounds.minX + xSpan * 0.75;
+        rulerCursors.hA.value = graphBounds.minY + ySpan * 0.30;
+        rulerCursors.hB.value = graphBounds.minY + ySpan * 0.70;
+        rulerCursors.initialized = true;
       }
 
-      if (measurePoints.length === 1) {
-        const a = measurePoints[0];
-        els.measureReadout.innerHTML =
-          '<div><strong>Point A selected</strong></div>' +
-          '<div>Line: ' + escapeHtml(a.column) + '</div>' +
-          '<div>X: ' + escapeHtml(a.xLabel) + ' · Y: ' + formatNumber(a.y) + '</div>' +
-          '<div class="muted">Click a second plotted point to calculate the ruler delta.</div>';
-        return;
-      }
-
-      const a = measurePoints[0];
-      const b = measurePoints[1];
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const slope = dx === 0 ? NaN : dy / dx;
-      const percentChange = a.y === 0 ? NaN : (dy / Math.abs(a.y)) * 100;
-
-      els.measureReadout.innerHTML =
-        '<div><strong>Ruler Measurement</strong></div>' +
-        '<div>A: ' + escapeHtml(a.column) + ' · ' + escapeHtml(a.xLabel) + ' · Y ' + formatNumber(a.y) + '</div>' +
-        '<div>B: ' + escapeHtml(b.column) + ' · ' + escapeHtml(b.xLabel) + ' · Y ' + formatNumber(b.y) + '</div>' +
-        '<div><strong>ΔX:</strong> ' + formatNumber(dx) + ' &nbsp; <strong>ΔY:</strong> ' + formatNumber(dy) + '</div>' +
-        '<div><strong>Slope:</strong> ' + formatNumber(slope) + ' per X unit &nbsp; <strong>Change:</strong> ' + formatNumber(percentChange) + '%</div>' +
-        '<div class="muted">This is excellent for checking how fast voltage, RPM, boost, temperature, or fuel trims changed across an event.</div>';
+      rulerCursors.vA.value = clamp(rulerCursors.vA.value, graphBounds.minX, graphBounds.maxX);
+      rulerCursors.vB.value = clamp(rulerCursors.vB.value, graphBounds.minX, graphBounds.maxX);
+      rulerCursors.hA.value = clamp(rulerCursors.hA.value, graphBounds.minY, graphBounds.maxY);
+      rulerCursors.hB.value = clamp(rulerCursors.hB.value, graphBounds.minY, graphBounds.maxY);
     }
 
-    function drawMeasurements(ctx) {
-      if (!measurePoints.length || !graphBounds) return;
+    function hitTestRuler(point) {
+      if (!graphBounds || !rulerCursors.initialized) return null;
 
-      measurePoints.forEach((measurePoint, index) => {
-        const screen = dataToScreen(measurePoint.x, measurePoint.y);
-        if (!screen || !isInsidePlot(screen.x, screen.y)) return;
-
-        drawRulerCursor(ctx, screen.x, screen.y, measurePoint.color, index === 0 ? "A" : "B");
-      });
-
-      if (measurePoints.length === 2) {
-        const a = dataToScreen(measurePoints[0].x, measurePoints[0].y);
-        const b = dataToScreen(measurePoints[1].x, measurePoints[1].y);
-
-        if (!a || !b) return;
-
-        ctx.save();
-        ctx.strokeStyle = hexToRgba(getCss("--accent-2", "#9ae6b4"), .70);
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 5]);
-
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
-
-        ctx.restore();
-      }
-    }
-
-    function drawRulerCursor(ctx, x, y, color, label) {
       const pad = graphBounds.pad;
       const left = pad.left;
       const right = pad.left + graphBounds.chartW;
       const top = pad.top;
       const bottom = pad.top + graphBounds.chartH;
 
-      ctx.save();
+      const candidates = [
+        {
+          key: "vA",
+          distance: Math.abs(point.x - graphBounds.sx(rulerCursors.vA.value)),
+          valid: point.y >= top - 24 && point.y <= bottom + 8
+        },
+        {
+          key: "vB",
+          distance: Math.abs(point.x - graphBounds.sx(rulerCursors.vB.value)),
+          valid: point.y >= top - 24 && point.y <= bottom + 8
+        },
+        {
+          key: "hA",
+          distance: Math.abs(point.y - graphBounds.sy(rulerCursors.hA.value)),
+          valid: point.x >= left - 44 && point.x <= right + 8
+        },
+        {
+          key: "hB",
+          distance: Math.abs(point.y - graphBounds.sy(rulerCursors.hB.value)),
+          valid: point.x >= left - 44 && point.x <= right + 8
+        }
+      ].filter(candidate => candidate.valid && candidate.distance <= 14);
 
-      ctx.strokeStyle = hexToRgba(color || getCss("--accent", "#68d391"), .72);
-      ctx.lineWidth = 1.4;
-      ctx.setLineDash([7, 5]);
+      if (!candidates.length) return null;
+
+      candidates.sort((a, b) => a.distance - b.distance);
+      return candidates[0].key;
+    }
+
+    function updateRulerFromCanvasPoint(key, point) {
+      if (!graphBounds || !rulerCursors[key]) return;
+
+      const pad = graphBounds.pad;
+      const left = pad.left;
+      const right = pad.left + graphBounds.chartW;
+      const top = pad.top;
+      const bottom = pad.top + graphBounds.chartH;
+
+      if (key.startsWith("v")) {
+        const x = clamp(point.x, left, right);
+        rulerCursors[key].value =
+          graphBounds.minX + ((x - left) / graphBounds.chartW) * (graphBounds.maxX - graphBounds.minX);
+      } else {
+        const y = clamp(point.y, top, bottom);
+        rulerCursors[key].value =
+          graphBounds.maxY - ((y - top) / graphBounds.chartH) * (graphBounds.maxY - graphBounds.minY);
+      }
+    }
+
+    function renderMeasurement() {
+      if (!els.measureReadout) return;
+
+      els.clearMeasureBtn.disabled = !els.measureMode.checked || !graphBounds;
+
+      if (!els.measureMode.checked) {
+        els.measureReadout.innerHTML =
+          '<div><strong>Rulers hidden.</strong></div>' +
+          '<div class="muted">Turn on rulers to show colored cursor tabs, value bubbles, ΔX, ΔY, slope, and percent change.</div>';
+        return;
+      }
+
+      if (!graphBounds) {
+        els.measureReadout.innerHTML =
+          '<div><strong>Load a graph first.</strong></div>' +
+          '<div class="muted">Upload CSV data and add at least one graph line before using rulers.</div>';
+        return;
+      }
+
+      ensureRulersInitialized();
+
+      const dx = rulerCursors.vB.value - rulerCursors.vA.value;
+      const dy = rulerCursors.hB.value - rulerCursors.hA.value;
+      const slope = dx === 0 ? NaN : dy / dx;
+      const percentChange = rulerCursors.hA.value === 0 ? NaN : (dy / Math.abs(rulerCursors.hA.value)) * 100;
+
+      els.measureReadout.innerHTML =
+        '<div><strong>Pico-Style Ruler Readout</strong></div>' +
+        '<div><span style="color:' + rulerCursors.vA.color + '"><strong>X-A:</strong></span> ' + formatNumber(rulerCursors.vA.value) +
+        ' &nbsp; <span style="color:' + rulerCursors.vB.color + '"><strong>X-B:</strong></span> ' + formatNumber(rulerCursors.vB.value) + '</div>' +
+        '<div><span style="color:' + rulerCursors.hA.color + '"><strong>Y-A:</strong></span> ' + formatNumber(rulerCursors.hA.value) +
+        ' &nbsp; <span style="color:' + rulerCursors.hB.color + '"><strong>Y-B:</strong></span> ' + formatNumber(rulerCursors.hB.value) + '</div>' +
+        '<div><strong>ΔX:</strong> ' + formatNumber(dx) + ' &nbsp; <strong>ΔY:</strong> ' + formatNumber(dy) + '</div>' +
+        '<div><strong>Slope:</strong> ' + formatNumber(slope) + ' per X unit &nbsp; <strong>Y change:</strong> ' + formatNumber(percentChange) + '%</div>' +
+        '<div class="muted">Drag the colored edge tabs or ruler lines directly on the graph.</div>';
+    }
+
+    function drawMeasurements(ctx) {
+      if (!els.measureMode.checked || !graphBounds) return;
+
+      ensureRulersInitialized();
+
+      const vA = rulerCursors.vA;
+      const vB = rulerCursors.vB;
+      const hA = rulerCursors.hA;
+      const hB = rulerCursors.hB;
+
+      drawVerticalRuler(ctx, vA.value, vA.color, "X-A");
+      drawVerticalRuler(ctx, vB.value, vB.color, "X-B");
+      drawHorizontalRuler(ctx, hA.value, hA.color, "Y-A");
+      drawHorizontalRuler(ctx, hB.value, hB.color, "Y-B");
+
+      drawRulerDeltaBox(ctx);
+    }
+
+    function drawVerticalRuler(ctx, xValue, color, label) {
+      const pad = graphBounds.pad;
+      const x = graphBounds.sx(xValue);
+      const top = pad.top;
+      const bottom = pad.top + graphBounds.chartH;
+
+      ctx.save();
+      ctx.strokeStyle = hexToRgba(color, .88);
+      ctx.lineWidth = 1.7;
+      ctx.setLineDash([8, 5]);
 
       ctx.beginPath();
       ctx.moveTo(x, top);
       ctx.lineTo(x, bottom);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+      drawRulerBubble(ctx, x + 6, top + 9, label + " " + formatNumber(xValue), color, "left");
+      drawVerticalHandle(ctx, x, top, color, label);
+
+      ctx.restore();
+    }
+
+    function drawHorizontalRuler(ctx, yValue, color, label) {
+      const pad = graphBounds.pad;
+      const y = graphBounds.sy(yValue);
+      const left = pad.left;
+      const right = pad.left + graphBounds.chartW;
+
+      ctx.save();
+      ctx.strokeStyle = hexToRgba(color, .88);
+      ctx.lineWidth = 1.7;
+      ctx.setLineDash([8, 5]);
+
+      ctx.beginPath();
       ctx.moveTo(left, y);
       ctx.lineTo(right, y);
       ctx.stroke();
 
       ctx.setLineDash([]);
-      ctx.fillStyle = color || getCss("--accent", "#68d391");
+      drawRulerBubble(ctx, left + 8, y - 24, label + " " + formatNumber(yValue), color, "left");
+      drawHorizontalHandle(ctx, left, y, color, label);
+
+      ctx.restore();
+    }
+
+    function drawVerticalHandle(ctx, x, top, color, label) {
+      ctx.fillStyle = color;
       ctx.strokeStyle = getCss("--chart-bg", "#0b100d");
       ctx.lineWidth = 2;
 
       ctx.beginPath();
-      ctx.arc(x, y, 7, 0, Math.PI * 2);
+      ctx.moveTo(x - 12, top - 1);
+      ctx.lineTo(x + 12, top - 1);
+      ctx.lineTo(x, top + 16);
+      ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = getCss("--chart-bg", "#0b100d");
-      ctx.font = "bold 10px Arial";
+      ctx.fillStyle = readableTextColor(color);
+      ctx.font = "bold 9px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(label, x, y + .5);
+      ctx.fillText(label.replace("X-", ""), x, top + 6);
+    }
 
+    function drawHorizontalHandle(ctx, left, y, color, label) {
+      ctx.fillStyle = color;
+      ctx.strokeStyle = getCss("--chart-bg", "#0b100d");
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.moveTo(left - 2, y - 12);
+      ctx.lineTo(left - 2, y + 12);
+      ctx.lineTo(left + 17, y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = readableTextColor(color);
+      ctx.font = "bold 9px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label.replace("Y-", ""), left + 6, y);
+    }
+
+    function drawRulerBubble(ctx, x, y, text, color, align) {
+      ctx.font = "bold 12px Arial";
+      const paddingX = 8;
+      const height = 23;
+      const width = ctx.measureText(text).width + paddingX * 2;
+
+      const plotRight = graphBounds.pad.left + graphBounds.chartW;
+      const plotBottom = graphBounds.pad.top + graphBounds.chartH;
+
+      let bx = align === "right" ? x - width : x;
+      let by = y;
+
+      bx = clamp(bx, graphBounds.pad.left + 4, plotRight - width - 4);
+      by = clamp(by, graphBounds.pad.top + 4, plotBottom - height - 4);
+
+      ctx.fillStyle = color;
+      roundRect(ctx, bx, by, width, height, 7);
+      ctx.fill();
+
+      ctx.strokeStyle = hexToRgba(getCss("--chart-bg", "#0b100d"), .85);
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+
+      ctx.fillStyle = readableTextColor(color);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, bx + paddingX, by + height / 2 + .5);
+    }
+
+    function drawRulerDeltaBox(ctx) {
+      const dx = rulerCursors.vB.value - rulerCursors.vA.value;
+      const dy = rulerCursors.hB.value - rulerCursors.hA.value;
+      const slope = dx === 0 ? NaN : dy / dx;
+
+      const text = "ΔX " + formatNumber(dx) + "   ΔY " + formatNumber(dy) + "   Slope " + formatNumber(slope);
+      const pad = graphBounds.pad;
+      const x = pad.left + 12;
+      const y = pad.top + graphBounds.chartH - 36;
+
+      ctx.save();
+      ctx.font = "bold 12px Arial";
+      const width = ctx.measureText(text).width + 18;
+      const height = 25;
+
+      ctx.fillStyle = hexToRgba(getCss("--chart-bg", "#0b100d"), .84);
+      roundRect(ctx, x, y, width, height, 8);
+      ctx.fill();
+
+      ctx.strokeStyle = hexToRgba(getCss("--accent-2", "#9ae6b4"), .70);
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.fillStyle = getCss("--text", "#eef5ef");
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, x + 9, y + height / 2 + .5);
       ctx.restore();
     }
 
@@ -2129,19 +2332,17 @@
       if (els.concern.value.trim()) parts.push("<strong>Concern:</strong> " + escapeHtml(els.concern.value.trim()));
       if (els.notes.value.trim()) parts.push("<strong>Notes:</strong> " + escapeHtml(els.notes.value.trim()).replaceAll("\n", "<br>"));
 
-      if (measurePoints.length === 2) {
-        const a = measurePoints[0];
-        const b = measurePoints[1];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
+      if (rulerCursors.initialized) {
+        const dx = rulerCursors.vB.value - rulerCursors.vA.value;
+        const dy = rulerCursors.hB.value - rulerCursors.hA.value;
         const slope = dx === 0 ? NaN : dy / dx;
-        const percentChange = a.y === 0 ? NaN : (dy / Math.abs(a.y)) * 100;
+        const percentChange = rulerCursors.hA.value === 0 ? NaN : (dy / Math.abs(rulerCursors.hA.value)) * 100;
 
         parts.push(
           "<strong>Ruler Measurement:</strong><br>" +
-          "A: " + escapeHtml(a.column) + " @ " + escapeHtml(a.xLabel) + " = " + formatNumber(a.y) + "<br>" +
-          "B: " + escapeHtml(b.column) + " @ " + escapeHtml(b.xLabel) + " = " + formatNumber(b.y) + "<br>" +
-          "ΔX: " + formatNumber(dx) + " · ΔY: " + formatNumber(dy) + " · Slope: " + formatNumber(slope) + " · Change: " + formatNumber(percentChange) + "%"
+          "X-A: " + formatNumber(rulerCursors.vA.value) + " · X-B: " + formatNumber(rulerCursors.vB.value) + "<br>" +
+          "Y-A: " + formatNumber(rulerCursors.hA.value) + " · Y-B: " + formatNumber(rulerCursors.hB.value) + "<br>" +
+          "ΔX: " + formatNumber(dx) + " · ΔY: " + formatNumber(dy) + " · Slope: " + formatNumber(slope) + " · Y Change: " + formatNumber(percentChange) + "%"
         );
       }
 
@@ -2177,6 +2378,30 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      const r = Math.min(radius, width / 2, height / 2);
+
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + width - r, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+      ctx.lineTo(x + width, y + height - r);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+      ctx.lineTo(x + r, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
+
+    function readableTextColor(hex) {
+      const parsed = parseHex(hex);
+      if (!parsed) return "#000000";
+
+      const brightness = (parsed.r * 299 + parsed.g * 587 + parsed.b * 114) / 1000;
+      return brightness > 150 ? "#101410" : "#ffffff";
     }
 
     function getCss(name, fallback) {
