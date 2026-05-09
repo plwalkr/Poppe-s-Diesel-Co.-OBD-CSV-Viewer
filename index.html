@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer v0.4</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer v0.5</title>
   <style>
     :root {
       --app-bg: #0f1412;
@@ -358,6 +358,26 @@
       gap: 10px;
     }
 
+    .measure-readout {
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--app-bg) 70%, transparent);
+      border-radius: 14px;
+      padding: 11px;
+      display: grid;
+      gap: 7px;
+      font-size: .86rem;
+      line-height: 1.35;
+    }
+
+    .measure-readout strong {
+      color: var(--accent-2);
+    }
+
+    .measure-readout .muted {
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
     .series-item,
     .note-item {
       display: grid;
@@ -563,9 +583,9 @@
     <div class="header-inner">
       <div>
         <h1>Poppe's Diesel Co. OBD CSV Viewer</h1>
-        <div class="subtitle">Offline CSV upload → multiple graph lines → preset themes → editable graph line colors → drag-box zoom → subtle graph notes.</div>
+        <div class="subtitle">Offline CSV upload → multiple graph lines → preset themes → editable graph line colors → drag-box zoom → ruler measurements → subtle graph notes.</div>
       </div>
-      <div class="version">v0.4 drag-box zoom</div>
+      <div class="version">v0.5 ruler measurements</div>
     </div>
   </header>
 
@@ -645,7 +665,28 @@
         </section>
 
         <section class="card">
-          <h2>4. Graph Notes</h2>
+          <h2>4. Ruler Measurements</h2>
+
+          <div class="toggle-row">
+            <input id="measureMode" type="checkbox" />
+            <div>
+              <label for="measureMode">Measurement ruler mode</label>
+              <div class="hint">Turn on, then click near two plotted points. The graph will draw vertical and horizontal rulers and calculate the difference.</div>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button id="clearMeasureBtn" class="secondary" disabled>Clear Rulers</button>
+          </div>
+
+          <div class="measure-readout" id="measureReadout">
+            <div><strong>No ruler points selected.</strong></div>
+            <div class="muted">Point A and Point B will calculate ΔX, ΔY, slope, and percent change.</div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>5. Graph Notes</h2>
 
           <div class="toggle-row">
             <input id="noteMode" type="checkbox" />
@@ -669,7 +710,7 @@
         </section>
 
         <section class="card">
-          <h2>5. Report Notes</h2>
+          <h2>6. Report Notes</h2>
 
           <div class="row">
             <div class="field">
@@ -793,6 +834,7 @@
     let isDraggingZoom = false;
     let dragStart = null;
     let dragEnd = null;
+    let measurePoints = [];
 
     const defaultPalette = [
       "#68d391", "#90cdf4", "#f6ad55", "#fc8181", "#b794f4",
@@ -822,6 +864,9 @@
       notesStat: document.getElementById("notesStat"),
       statsTable: document.getElementById("statsTable"),
       previewTable: document.getElementById("previewTable"),
+      measureMode: document.getElementById("measureMode"),
+      clearMeasureBtn: document.getElementById("clearMeasureBtn"),
+      measureReadout: document.getElementById("measureReadout"),
       noteMode: document.getElementById("noteMode"),
       showNotes: document.getElementById("showNotes"),
       notesList: document.getElementById("notesList"),
@@ -848,6 +893,18 @@
     els.chart.addEventListener("mouseup", handleChartMouseUp);
     els.chart.addEventListener("mouseleave", handleChartMouseLeave);
     els.showNotes.addEventListener("change", drawGraph);
+    els.measureMode.addEventListener("change", () => {
+      if (els.measureMode.checked) {
+        els.noteMode.checked = false;
+        setGraphStatus("Measurement mode on. Click two plotted points to place rulers.", "good");
+      }
+    });
+    els.noteMode.addEventListener("change", () => {
+      if (els.noteMode.checked) {
+        els.measureMode.checked = false;
+      }
+    });
+    els.clearMeasureBtn.addEventListener("click", clearMeasurement);
     els.printBtn.addEventListener("click", () => {
       els.printMeta.innerHTML = buildPrintMeta();
       window.print();
@@ -893,6 +950,8 @@
           isDraggingZoom = false;
           dragStart = null;
           dragEnd = null;
+          measurePoints = [];
+          renderMeasurement();
 
           populateDropdowns();
           renderPreview();
@@ -1052,6 +1111,8 @@
       isDraggingZoom = false;
       dragStart = null;
       dragEnd = null;
+      measurePoints = [];
+      renderMeasurement();
       renderSeriesList();
       renderNotesList();
       drawGraph();
@@ -1302,6 +1363,8 @@
         drawNotes(ctx);
       }
 
+      drawMeasurements(ctx);
+
       if (isDraggingZoom && dragStart && dragEnd) {
         drawZoomBox(ctx, dragStart, dragEnd);
       }
@@ -1544,7 +1607,9 @@
         dragStart = null;
         dragEnd = null;
 
-        if (els.noteMode.checked) {
+        if (els.measureMode.checked) {
+          addMeasurementPointAtCanvasPoint(clickPoint);
+        } else if (els.noteMode.checked) {
           addNoteAtCanvasPoint(clickPoint);
         }
 
@@ -1583,9 +1648,37 @@
       drawGraph();
     }
 
-    function addNoteAtCanvasPoint(point) {
-      if (!els.noteMode.checked || !lastRenderPoints.length) return;
+    function addMeasurementPointAtCanvasPoint(point) {
+      if (!els.measureMode.checked || !lastRenderPoints.length) return;
 
+      const nearest = findNearestRenderPoint(point, 42);
+
+      if (!nearest) {
+        setGraphStatus("Click closer to a plotted line point to set a ruler point.", "warn");
+        return;
+      }
+
+      const measurePoint = {
+        lineId: nearest.lineId,
+        column: nearest.column,
+        color: nearest.color,
+        x: nearest.x,
+        y: nearest.yValue,
+        xLabel: nearest.xLabel
+      };
+
+      if (measurePoints.length >= 2) {
+        measurePoints = [measurePoint];
+        setGraphStatus("Point A set. Click Point B for measurement.", "good");
+      } else {
+        measurePoints.push(measurePoint);
+        setGraphStatus(measurePoints.length === 1 ? "Point A set. Click Point B." : "Point B set. Ruler measurement calculated.", "good");
+      }
+
+      renderMeasurement();
+    }
+
+    function findNearestRenderPoint(point, maxDistance) {
       let nearest = null;
       let nearestDistance = Infinity;
 
@@ -1600,7 +1693,138 @@
         }
       });
 
-      if (!nearest || nearestDistance > 38) {
+      return nearestDistance <= maxDistance ? nearest : null;
+    }
+
+    function clearMeasurement() {
+      measurePoints = [];
+      renderMeasurement();
+      drawGraph();
+    }
+
+    function renderMeasurement() {
+      if (!els.measureReadout) return;
+
+      els.clearMeasureBtn.disabled = measurePoints.length === 0;
+
+      if (!measurePoints.length) {
+        els.measureReadout.innerHTML =
+          '<div><strong>No ruler points selected.</strong></div>' +
+          '<div class="muted">Point A and Point B will calculate ΔX, ΔY, slope, and percent change.</div>';
+        return;
+      }
+
+      if (measurePoints.length === 1) {
+        const a = measurePoints[0];
+        els.measureReadout.innerHTML =
+          '<div><strong>Point A selected</strong></div>' +
+          '<div>Line: ' + escapeHtml(a.column) + '</div>' +
+          '<div>X: ' + escapeHtml(a.xLabel) + ' · Y: ' + formatNumber(a.y) + '</div>' +
+          '<div class="muted">Click a second plotted point to calculate the ruler delta.</div>';
+        return;
+      }
+
+      const a = measurePoints[0];
+      const b = measurePoints[1];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const slope = dx === 0 ? NaN : dy / dx;
+      const percentChange = a.y === 0 ? NaN : (dy / Math.abs(a.y)) * 100;
+
+      els.measureReadout.innerHTML =
+        '<div><strong>Ruler Measurement</strong></div>' +
+        '<div>A: ' + escapeHtml(a.column) + ' · ' + escapeHtml(a.xLabel) + ' · Y ' + formatNumber(a.y) + '</div>' +
+        '<div>B: ' + escapeHtml(b.column) + ' · ' + escapeHtml(b.xLabel) + ' · Y ' + formatNumber(b.y) + '</div>' +
+        '<div><strong>ΔX:</strong> ' + formatNumber(dx) + ' &nbsp; <strong>ΔY:</strong> ' + formatNumber(dy) + '</div>' +
+        '<div><strong>Slope:</strong> ' + formatNumber(slope) + ' per X unit &nbsp; <strong>Change:</strong> ' + formatNumber(percentChange) + '%</div>' +
+        '<div class="muted">This is excellent for checking how fast voltage, RPM, boost, temperature, or fuel trims changed across an event.</div>';
+    }
+
+    function drawMeasurements(ctx) {
+      if (!measurePoints.length || !graphBounds) return;
+
+      measurePoints.forEach((measurePoint, index) => {
+        const screen = dataToScreen(measurePoint.x, measurePoint.y);
+        if (!screen || !isInsidePlot(screen.x, screen.y)) return;
+
+        drawRulerCursor(ctx, screen.x, screen.y, measurePoint.color, index === 0 ? "A" : "B");
+      });
+
+      if (measurePoints.length === 2) {
+        const a = dataToScreen(measurePoints[0].x, measurePoints[0].y);
+        const b = dataToScreen(measurePoints[1].x, measurePoints[1].y);
+
+        if (!a || !b) return;
+
+        ctx.save();
+        ctx.strokeStyle = hexToRgba(getCss("--accent-2", "#9ae6b4"), .70);
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 5]);
+
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    function drawRulerCursor(ctx, x, y, color, label) {
+      const pad = graphBounds.pad;
+      const left = pad.left;
+      const right = pad.left + graphBounds.chartW;
+      const top = pad.top;
+      const bottom = pad.top + graphBounds.chartH;
+
+      ctx.save();
+
+      ctx.strokeStyle = hexToRgba(color || getCss("--accent", "#68d391"), .72);
+      ctx.lineWidth = 1.4;
+      ctx.setLineDash([7, 5]);
+
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, bottom);
+      ctx.moveTo(left, y);
+      ctx.lineTo(right, y);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+      ctx.fillStyle = color || getCss("--accent", "#68d391");
+      ctx.strokeStyle = getCss("--chart-bg", "#0b100d");
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.arc(x, y, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = getCss("--chart-bg", "#0b100d");
+      ctx.font = "bold 10px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, x, y + .5);
+
+      ctx.restore();
+    }
+
+    function dataToScreen(x, y) {
+      if (!graphBounds) return null;
+
+      return {
+        x: graphBounds.sx(x),
+        y: graphBounds.sy(y)
+      };
+    }
+
+    function addNoteAtCanvasPoint(point) {
+      if (!els.noteMode.checked || !lastRenderPoints.length) return;
+
+      const nearest = findNearestRenderPoint(point, 38);
+
+      if (!nearest) {
         setGraphStatus("Click closer to a plotted line point to add a note.", "warn");
         return;
       }
@@ -1905,6 +2129,22 @@
       if (els.concern.value.trim()) parts.push("<strong>Concern:</strong> " + escapeHtml(els.concern.value.trim()));
       if (els.notes.value.trim()) parts.push("<strong>Notes:</strong> " + escapeHtml(els.notes.value.trim()).replaceAll("\n", "<br>"));
 
+      if (measurePoints.length === 2) {
+        const a = measurePoints[0];
+        const b = measurePoints[1];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const slope = dx === 0 ? NaN : dy / dx;
+        const percentChange = a.y === 0 ? NaN : (dy / Math.abs(a.y)) * 100;
+
+        parts.push(
+          "<strong>Ruler Measurement:</strong><br>" +
+          "A: " + escapeHtml(a.column) + " @ " + escapeHtml(a.xLabel) + " = " + formatNumber(a.y) + "<br>" +
+          "B: " + escapeHtml(b.column) + " @ " + escapeHtml(b.xLabel) + " = " + formatNumber(b.y) + "<br>" +
+          "ΔX: " + formatNumber(dx) + " · ΔY: " + formatNumber(dy) + " · Slope: " + formatNumber(slope) + " · Change: " + formatNumber(percentChange) + "%"
+        );
+      }
+
       if (graphNotes.length) {
         parts.push("<strong>Graph Notes:</strong><br>" + graphNotes.map((note, index) => {
           return (index + 1) + ". " + escapeHtml(note.column) + " @ " + escapeHtml(note.xLabel) + " = " + formatNumber(note.yValue) + " — " + escapeHtml(note.text);
@@ -2000,6 +2240,7 @@
     applyTheme();
     renderSeriesList();
     renderNotesList();
+    renderMeasurement();
     updateZoomStatus();
     drawPlaceholder();
   </script>
