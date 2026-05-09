@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer v0.3</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer v0.4</title>
   <style>
     :root {
       --app-bg: #0f1412;
@@ -302,6 +302,15 @@
       background: var(--chart-bg);
       border-radius: 12px;
       cursor: crosshair;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .zoom-pill {
+      display: inline-block;
+      margin-top: 7px;
+      color: var(--accent-2);
+      font-size: .8rem;
     }
 
     @media (max-width: 720px) {
@@ -554,9 +563,9 @@
     <div class="header-inner">
       <div>
         <h1>Poppe's Diesel Co. OBD CSV Viewer</h1>
-        <div class="subtitle">Offline CSV upload → multiple graph lines → preset themes → editable graph line colors → subtle graph notes.</div>
+        <div class="subtitle">Offline CSV upload → multiple graph lines → preset themes → editable graph line colors → drag-box zoom → subtle graph notes.</div>
       </div>
-      <div class="version">v0.3 preset themes</div>
+      <div class="version">v0.4 drag-box zoom</div>
     </div>
   </header>
 
@@ -607,6 +616,7 @@
 
           <div class="button-row">
             <button id="drawBtn" disabled>Redraw Graph</button>
+            <button id="resetZoomBtn" class="secondary" disabled>Reset Zoom</button>
             <button id="clearLinesBtn" class="secondary" disabled>Clear Lines</button>
           </div>
 
@@ -706,6 +716,7 @@
 
             <div class="screen-only" style="min-width:220px;">
               <div class="status" id="graphStatus">Ready for CSV upload.</div>
+              <div class="zoom-pill" id="zoomStatus"></div>
             </div>
           </div>
 
@@ -778,6 +789,10 @@
     let graphNotes = [];
     let lastRenderPoints = [];
     let graphBounds = null;
+    let zoomRange = null;
+    let isDraggingZoom = false;
+    let dragStart = null;
+    let dragEnd = null;
 
     const defaultPalette = [
       "#68d391", "#90cdf4", "#f6ad55", "#fc8181", "#b794f4",
@@ -793,12 +808,14 @@
       lineColor: document.getElementById("lineColor"),
       addLineBtn: document.getElementById("addLineBtn"),
       drawBtn: document.getElementById("drawBtn"),
+      resetZoomBtn: document.getElementById("resetZoomBtn"),
       clearLinesBtn: document.getElementById("clearLinesBtn"),
       seriesList: document.getElementById("seriesList"),
       chart: document.getElementById("chart"),
       chartTitle: document.getElementById("chartTitle"),
       chartSubtitle: document.getElementById("chartSubtitle"),
       graphStatus: document.getElementById("graphStatus"),
+      zoomStatus: document.getElementById("zoomStatus"),
       activeLinesStat: document.getElementById("activeLinesStat"),
       samplesStat: document.getElementById("samplesStat"),
       xAxisStat: document.getElementById("xAxisStat"),
@@ -821,8 +838,15 @@
     els.addLineBtn.addEventListener("click", addSelectedLine);
     els.drawBtn.addEventListener("click", drawGraph);
     els.clearLinesBtn.addEventListener("click", clearLines);
-    els.xColumn.addEventListener("change", drawGraph);
-    els.chart.addEventListener("click", handleChartClick);
+    els.resetZoomBtn.addEventListener("click", resetZoom);
+    els.xColumn.addEventListener("change", () => {
+      zoomRange = null;
+      drawGraph();
+    });
+    els.chart.addEventListener("mousedown", handleChartMouseDown);
+    els.chart.addEventListener("mousemove", handleChartMouseMove);
+    els.chart.addEventListener("mouseup", handleChartMouseUp);
+    els.chart.addEventListener("mouseleave", handleChartMouseLeave);
     els.showNotes.addEventListener("change", drawGraph);
     els.printBtn.addEventListener("click", () => {
       els.printMeta.innerHTML = buildPrintMeta();
@@ -865,6 +889,10 @@
 
           graphLines = [];
           graphNotes = [];
+          zoomRange = null;
+          isDraggingZoom = false;
+          dragStart = null;
+          dragEnd = null;
 
           populateDropdowns();
           renderPreview();
@@ -934,6 +962,7 @@
         els.lineColor,
         els.addLineBtn,
         els.drawBtn,
+        els.resetZoomBtn,
         els.clearLinesBtn
       ].forEach(el => el.disabled = false);
     }
@@ -1019,8 +1048,20 @@
     function clearLines() {
       graphLines = [];
       graphNotes = [];
+      zoomRange = null;
+      isDraggingZoom = false;
+      dragStart = null;
+      dragEnd = null;
       renderSeriesList();
       renderNotesList();
+      drawGraph();
+    }
+
+    function resetZoom() {
+      zoomRange = null;
+      isDraggingZoom = false;
+      dragStart = null;
+      dragEnd = null;
       drawGraph();
     }
 
@@ -1169,16 +1210,37 @@
         return;
       }
 
-      const lineSeries = visibleLines.map(line => ({
+      const fullLineSeries = visibleLines.map(line => ({
         line,
         points: getSeries(xCol, line.column)
       })).filter(series => series.points.length >= 2);
 
-      if (!lineSeries.length) {
+      if (!fullLineSeries.length) {
         drawEmptyMessage(ctx, width, height, "Not enough numeric data in the active line(s)");
         setGraphStatus("Not enough numeric data found for the active line(s).", "bad");
         renderStatsTable([]);
+        updateZoomStatus();
         return;
+      }
+
+      let lineSeries = fullLineSeries;
+
+      if (zoomRange) {
+        lineSeries = fullLineSeries.map(series => ({
+          line: series.line,
+          points: series.points.filter(point =>
+            point.x >= zoomRange.minX &&
+            point.x <= zoomRange.maxX &&
+            point.y >= zoomRange.minY &&
+            point.y <= zoomRange.maxY
+          )
+        })).filter(series => series.points.length >= 2);
+
+        if (!lineSeries.length) {
+          zoomRange = null;
+          lineSeries = fullLineSeries;
+          setGraphStatus("Zoom area had too little data, so zoom was reset.", "warn");
+        }
       }
 
       const pad = { top: 42, right: 34, bottom: 66, left: 76 };
@@ -1191,15 +1253,24 @@
       let minY = Math.min(...allPoints.map(point => point.y));
       let maxY = Math.max(...allPoints.map(point => point.y));
 
+      if (zoomRange) {
+        minX = zoomRange.minX;
+        maxX = zoomRange.maxX;
+        minY = zoomRange.minY;
+        maxY = zoomRange.maxY;
+      }
+
       if (minX === maxX) maxX = minX + 1;
       if (minY === maxY) {
         minY -= 1;
         maxY += 1;
       }
 
-      const yPad = (maxY - minY) * .08;
-      minY -= yPad;
-      maxY += yPad;
+      if (!zoomRange) {
+        const yPad = (maxY - minY) * .08;
+        minY -= yPad;
+        maxY += yPad;
+      }
 
       const sx = x => pad.left + ((x - minX) / (maxX - minX)) * chartW;
       const sy = y => pad.top + chartH - ((y - minY) / (maxY - minY)) * chartH;
@@ -1231,13 +1302,21 @@
         drawNotes(ctx);
       }
 
+      if (isDraggingZoom && dragStart && dragEnd) {
+        drawZoomBox(ctx, dragStart, dragEnd);
+      }
+
       drawLegend(ctx, lineSeries, width, pad);
 
       const totalSamples = lineSeries.reduce((sum, series) => sum + series.points.length, 0);
       updateMainStats(lineSeries.length, totalSamples, xCol);
       renderStatsTable(lineSeries);
       updateTitles(lineSeries, xCol);
-      setGraphStatus("Graph drawn with " + lineSeries.length + " active line(s).", "good");
+      updateZoomStatus();
+
+      if (!zoomRange) {
+        setGraphStatus("Graph drawn with " + lineSeries.length + " active line(s).", "good");
+      }
     }
 
     function getSeries(xCol, yCol) {
@@ -1429,23 +1508,94 @@
       });
     }
 
-    function handleChartClick(event) {
-      if (!els.noteMode.checked || !lastRenderPoints.length) return;
+    function handleChartMouseDown(event) {
+      if (!graphBounds || !lastRenderPoints.length) return;
 
-      const rect = els.chart.getBoundingClientRect();
-      const clickX = event.clientX - rect.left;
-      const clickY = event.clientY - rect.top;
+      const point = getCanvasPoint(event);
+
+      if (!isInsidePlot(point.x, point.y)) return;
+
+      isDraggingZoom = true;
+      dragStart = point;
+      dragEnd = point;
+    }
+
+    function handleChartMouseMove(event) {
+      if (!isDraggingZoom) return;
+
+      dragEnd = getCanvasPoint(event);
+      drawGraph();
+    }
+
+    function handleChartMouseUp(event) {
+      if (!isDraggingZoom || !dragStart) return;
+
+      dragEnd = getCanvasPoint(event);
+
+      const dx = Math.abs(dragEnd.x - dragStart.x);
+      const dy = Math.abs(dragEnd.y - dragStart.y);
+
+      const wasSmallClick = dx < 7 && dy < 7;
+
+      isDraggingZoom = false;
+
+      if (wasSmallClick) {
+        const clickPoint = dragEnd;
+        dragStart = null;
+        dragEnd = null;
+
+        if (els.noteMode.checked) {
+          addNoteAtCanvasPoint(clickPoint);
+        }
+
+        drawGraph();
+        return;
+      }
+
+      if (dx < 16 || dy < 16) {
+        dragStart = null;
+        dragEnd = null;
+        setGraphStatus("Drag a bigger box to zoom.", "warn");
+        drawGraph();
+        return;
+      }
+
+      const range = canvasBoxToDataRange(dragStart, dragEnd);
+      dragStart = null;
+      dragEnd = null;
+
+      if (!range) {
+        setGraphStatus("Zoom box was outside the graph area.", "warn");
+        drawGraph();
+        return;
+      }
+
+      zoomRange = range;
+      drawGraph();
+    }
+
+    function handleChartMouseLeave() {
+      if (!isDraggingZoom) return;
+
+      isDraggingZoom = false;
+      dragStart = null;
+      dragEnd = null;
+      drawGraph();
+    }
+
+    function addNoteAtCanvasPoint(point) {
+      if (!els.noteMode.checked || !lastRenderPoints.length) return;
 
       let nearest = null;
       let nearestDistance = Infinity;
 
-      lastRenderPoints.forEach(point => {
-        const dx = point.screenX - clickX;
-        const dy = point.screenY - clickY;
+      lastRenderPoints.forEach(renderPoint => {
+        const dx = renderPoint.screenX - point.x;
+        const dy = renderPoint.screenY - point.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance < nearestDistance) {
-          nearest = point;
+          nearest = renderPoint;
           nearestDistance = distance;
         }
       });
@@ -1474,7 +1624,86 @@
       });
 
       renderNotesList();
-      drawGraph();
+    }
+
+    function getCanvasPoint(event) {
+      const rect = els.chart.getBoundingClientRect();
+
+      return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+      };
+    }
+
+    function isInsidePlot(x, y) {
+      if (!graphBounds) return false;
+
+      const left = graphBounds.pad.left;
+      const right = graphBounds.pad.left + graphBounds.chartW;
+      const top = graphBounds.pad.top;
+      const bottom = graphBounds.pad.top + graphBounds.chartH;
+
+      return x >= left && x <= right && y >= top && y <= bottom;
+    }
+
+    function canvasBoxToDataRange(start, end) {
+      if (!graphBounds) return null;
+
+      const left = graphBounds.pad.left;
+      const right = graphBounds.pad.left + graphBounds.chartW;
+      const top = graphBounds.pad.top;
+      const bottom = graphBounds.pad.top + graphBounds.chartH;
+
+      const x1 = clamp(Math.min(start.x, end.x), left, right);
+      const x2 = clamp(Math.max(start.x, end.x), left, right);
+      const y1 = clamp(Math.min(start.y, end.y), top, bottom);
+      const y2 = clamp(Math.max(start.y, end.y), top, bottom);
+
+      if (Math.abs(x2 - x1) < 12 || Math.abs(y2 - y1) < 12) return null;
+
+      const dataX1 = graphBounds.minX + ((x1 - left) / graphBounds.chartW) * (graphBounds.maxX - graphBounds.minX);
+      const dataX2 = graphBounds.minX + ((x2 - left) / graphBounds.chartW) * (graphBounds.maxX - graphBounds.minX);
+
+      const dataYTop = graphBounds.maxY - ((y1 - top) / graphBounds.chartH) * (graphBounds.maxY - graphBounds.minY);
+      const dataYBottom = graphBounds.maxY - ((y2 - top) / graphBounds.chartH) * (graphBounds.maxY - graphBounds.minY);
+
+      return {
+        minX: Math.min(dataX1, dataX2),
+        maxX: Math.max(dataX1, dataX2),
+        minY: Math.min(dataYBottom, dataYTop),
+        maxY: Math.max(dataYBottom, dataYTop)
+      };
+    }
+
+    function drawZoomBox(ctx, start, end) {
+      if (!start || !end) return;
+
+      const x = Math.min(start.x, end.x);
+      const y = Math.min(start.y, end.y);
+      const width = Math.abs(end.x - start.x);
+      const height = Math.abs(end.y - start.y);
+
+      ctx.save();
+      ctx.fillStyle = hexToRgba(getCss("--accent", "#68d391"), .14);
+      ctx.strokeStyle = hexToRgba(getCss("--accent-2", "#9ae6b4"), .80);
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.fillRect(x, y, width, height);
+      ctx.strokeRect(x, y, width, height);
+      ctx.restore();
+    }
+
+    function updateZoomStatus() {
+      if (!els.zoomStatus) return;
+
+      if (!zoomRange) {
+        els.zoomStatus.textContent = "Drag a box on the graph to zoom.";
+        return;
+      }
+
+      els.zoomStatus.textContent =
+        "Zoom active: X " + formatNumber(zoomRange.minX) + "–" + formatNumber(zoomRange.maxX) +
+        " · Y " + formatNumber(zoomRange.minY) + "–" + formatNumber(zoomRange.maxY);
     }
 
     function updateMainStats(activeLines, totalSamples, xCol) {
@@ -1771,6 +2000,7 @@
     applyTheme();
     renderSeriesList();
     renderNotesList();
+    updateZoomStatus();
     drawPlaceholder();
   </script>
 </body>
