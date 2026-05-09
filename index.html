@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer v0.7</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer v0.8</title>
   <style>
     :root {
       --app-bg: #0f1412;
@@ -356,6 +356,41 @@
     .notes-list {
       display: grid;
       gap: 10px;
+    }
+
+    .outside-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      min-height: 0;
+    }
+
+    .outside-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--app-bg) 64%, transparent);
+      border-radius: 999px;
+      padding: 7px 10px;
+      color: var(--text);
+      font-size: .82rem;
+      line-height: 1;
+      max-width: 280px;
+    }
+
+    .outside-legend-item span:last-child {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .outside-legend-dot {
+      width: 18px;
+      height: 4px;
+      border-radius: 999px;
+      flex: 0 0 auto;
     }
 
     .measure-readout {
@@ -807,6 +842,8 @@
           <div class="chart-shell">
             <canvas id="chart"></canvas>
           </div>
+
+          <div class="outside-legend screen-only" id="outsideLegend"></div>
         </section>
 
         <section class="card">
@@ -885,6 +922,7 @@
       clearLinesBtn: document.getElementById("clearLinesBtn"),
       seriesList: document.getElementById("seriesList"),
       chart: document.getElementById("chart"),
+      outsideLegend: document.getElementById("outsideLegend"),
       chartTitle: document.getElementById("chartTitle"),
       chartSubtitle: document.getElementById("chartSubtitle"),
       graphStatus: document.getElementById("graphStatus"),
@@ -1307,6 +1345,7 @@
         drawEmptyMessage(ctx, width, height, parsedData.length ? "Add a data line to draw the graph" : "Upload an OBD CSV to graph data");
         updateMainStats(0, 0, xCol);
         renderStatsTable([]);
+        renderOutsideLegend([]);
         setGraphStatus(parsedData.length ? "CSV loaded. Add a data line." : "Ready for CSV upload.", parsedData.length ? "warn" : "");
         return;
       }
@@ -1320,6 +1359,7 @@
         drawEmptyMessage(ctx, width, height, "Not enough numeric data in the active line(s)");
         setGraphStatus("Not enough numeric data found for the active line(s).", "bad");
         renderStatsTable([]);
+        renderOutsideLegend([]);
         updateZoomStatus();
         return;
       }
@@ -1409,7 +1449,7 @@
         drawZoomBox(ctx, dragStart, dragEnd);
       }
 
-      drawLegend(ctx, lineSeries, width, pad);
+      renderOutsideLegend(lineSeries);
 
       const totalSamples = lineSeries.reduce((sum, series) => sum + series.points.length, 0);
       updateMainStats(lineSeries.length, totalSamples, xCol);
@@ -1563,27 +1603,31 @@
       }
     }
 
-    function drawLegend(ctx, lineSeries, width, pad) {
-      const maxLegendItems = 9;
-      const startX = Math.max(pad.left + 10, width - pad.right - 270);
-      let y = 20;
+    function renderOutsideLegend(lineSeries) {
+      if (!els.outsideLegend) return;
 
-      ctx.font = "12px Arial";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
+      els.outsideLegend.innerHTML = "";
 
-      lineSeries.slice(0, maxLegendItems).forEach(series => {
-        ctx.fillStyle = series.line.color;
-        ctx.fillRect(startX, y - 5, 22, 4);
-        ctx.fillStyle = getCss("--text", "#eef5ef");
-        ctx.fillText(series.line.column, startX + 30, y);
-        y += 20;
-      });
-
-      if (lineSeries.length > maxLegendItems) {
-        ctx.fillStyle = getCss("--muted", "#aebaae");
-        ctx.fillText("+" + (lineSeries.length - maxLegendItems) + " more", startX + 30, y);
+      if (!lineSeries || !lineSeries.length) {
+        return;
       }
+
+      lineSeries.forEach(series => {
+        const item = document.createElement("div");
+        item.className = "outside-legend-item";
+        item.title = series.line.column;
+
+        const dot = document.createElement("span");
+        dot.className = "outside-legend-dot";
+        dot.style.background = series.line.color;
+
+        const label = document.createElement("span");
+        label.textContent = series.line.column;
+
+        item.appendChild(dot);
+        item.appendChild(label);
+        els.outsideLegend.appendChild(item);
+      });
     }
 
     function drawNotes(ctx) {
