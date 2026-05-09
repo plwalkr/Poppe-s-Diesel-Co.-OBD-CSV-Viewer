@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer v0.2</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer v0.3</title>
   <style>
     :root {
       --app-bg: #0f1412;
@@ -13,7 +13,7 @@
       --text: #eef5ef;
       --muted: #aebaae;
       --line: #2f3d35;
-      --grid: rgba(255,255,255,.10);
+      --grid: rgba(255,255,255,.14);
       --accent: #68d391;
       --accent-2: #9ae6b4;
       --danger: #f56565;
@@ -554,9 +554,9 @@
     <div class="header-inner">
       <div>
         <h1>Poppe's Diesel Co. OBD CSV Viewer</h1>
-        <div class="subtitle">Offline CSV upload → multiple graph lines → custom colors → subtle graph notes → quick diagnostic stats.</div>
+        <div class="subtitle">Offline CSV upload → multiple graph lines → preset themes → editable graph line colors → subtle graph notes.</div>
       </div>
-      <div class="version">v0.2 multi-line + notes</div>
+      <div class="version">v0.3 preset themes</div>
     </div>
   </header>
 
@@ -595,7 +595,7 @@
 
           <div class="row">
             <div class="field">
-              <label for="lineColor">Line color</label>
+              <label for="lineColor">Graph line color</label>
               <input id="lineColor" type="color" value="#68d391" disabled />
             </div>
 
@@ -619,45 +619,19 @@
         </section>
 
         <section class="card">
-          <h2>3. Visibility Colors</h2>
+          <h2>3. Theme Preset</h2>
 
-          <div class="row">
-            <div class="field">
-              <label for="appBgColor">Page background</label>
-              <input id="appBgColor" type="color" value="#0f1412" />
-            </div>
-
-            <div class="field">
-              <label for="panelBgColor">Panel background</label>
-              <input id="panelBgColor" type="color" value="#151d19" />
-            </div>
+          <div class="field">
+            <label for="themePreset">Choose a clean viewing theme</label>
+            <select id="themePreset">
+              <option value="diesel-dark">Diesel Dark</option>
+              <option value="shop-light">Shop Light</option>
+              <option value="high-contrast">High Contrast</option>
+              <option value="blueprint">Blueprint</option>
+              <option value="warm-paper">Warm Paper</option>
+            </select>
+            <div class="mini">The app colors are handled by preset themes so the only custom color you need to mess with is the graph line color.</div>
           </div>
-
-          <div class="row">
-            <div class="field">
-              <label for="chartBgColor">Graph background</label>
-              <input id="chartBgColor" type="color" value="#0b100d" />
-            </div>
-
-            <div class="field">
-              <label for="gridColor">Graph grid color</label>
-              <input id="gridColor" type="color" value="#ffffff" />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="field">
-              <label for="textColor">Text color</label>
-              <input id="textColor" type="color" value="#eef5ef" />
-            </div>
-
-            <div class="field">
-              <label>&nbsp;</label>
-              <button id="resetColorsBtn" class="secondary">Reset Colors</button>
-            </div>
-          </div>
-
-          <div class="mini">Use this when a graph is hard to see on a projector, laptop screen, or printed report.</div>
         </section>
 
         <section class="card">
@@ -840,12 +814,7 @@
       customer: document.getElementById("customer"),
       concern: document.getElementById("concern"),
       notes: document.getElementById("notes"),
-      appBgColor: document.getElementById("appBgColor"),
-      panelBgColor: document.getElementById("panelBgColor"),
-      chartBgColor: document.getElementById("chartBgColor"),
-      gridColor: document.getElementById("gridColor"),
-      textColor: document.getElementById("textColor"),
-      resetColorsBtn: document.getElementById("resetColorsBtn")
+      themePreset: document.getElementById("themePreset")
     };
 
     els.file.addEventListener("change", handleFile);
@@ -860,11 +829,10 @@
       window.print();
     });
 
-    [els.appBgColor, els.panelBgColor, els.chartBgColor, els.gridColor, els.textColor].forEach(input => {
-      input.addEventListener("input", applyUserColors);
+    els.themePreset.addEventListener("change", () => {
+      applyTheme();
+      drawGraph();
     });
-
-    els.resetColorsBtn.addEventListener("click", resetColors);
 
     function handleFile(event) {
       const file = event.target.files[0];
@@ -1165,7 +1133,7 @@
     }
 
     function drawGraph() {
-      applyUserColors();
+      applyTheme();
 
       const canvas = els.chart;
       const ctx = canvas.getContext("2d");
@@ -1335,7 +1303,7 @@
     }
 
     function drawGrid(ctx, width, height, pad, chartW, chartH, minX, maxX, minY, maxY) {
-      const gridColor = hexToRgba(els.gridColor.value, .16);
+      const gridColor = getCss("--grid", "rgba(255,255,255,.14)");
       const textColor = getCss("--text", "#eef5ef");
 
       ctx.strokeStyle = gridColor;
@@ -1377,7 +1345,7 @@
     }
 
     function drawAxes(ctx, width, height, pad, chartW, chartH) {
-      ctx.strokeStyle = hexToRgba(els.textColor.value, .50);
+      ctx.strokeStyle = hexToRgba(getCss("--text", "#eef5ef"), .50);
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(pad.left, pad.top);
@@ -1620,27 +1588,83 @@
       els.graphStatus.className = "status " + kind;
     }
 
-    function applyUserColors() {
+    const themes = {
+      "diesel-dark": {
+        appBg: "#0f1412",
+        panelBg: "#151d19",
+        panelBg2: "#1d2822",
+        chartBg: "#0b100d",
+        text: "#eef5ef",
+        muted: "rgba(238,245,239,.70)",
+        line: "rgba(238,245,239,.18)",
+        grid: "rgba(255,255,255,.14)",
+        accent: "#68d391",
+        accent2: "#9ae6b4"
+      },
+      "shop-light": {
+        appBg: "#f3f1eb",
+        panelBg: "#ffffff",
+        panelBg2: "#f8f7f2",
+        chartBg: "#ffffff",
+        text: "#18221d",
+        muted: "rgba(24,34,29,.68)",
+        line: "rgba(24,34,29,.16)",
+        grid: "rgba(24,34,29,.13)",
+        accent: "#256f46",
+        accent2: "#2f855a"
+      },
+      "high-contrast": {
+        appBg: "#050505",
+        panelBg: "#111111",
+        panelBg2: "#181818",
+        chartBg: "#000000",
+        text: "#ffffff",
+        muted: "rgba(255,255,255,.76)",
+        line: "rgba(255,255,255,.26)",
+        grid: "rgba(255,255,255,.22)",
+        accent: "#00e676",
+        accent2: "#69f0ae"
+      },
+      "blueprint": {
+        appBg: "#071426",
+        panelBg: "#0b1e36",
+        panelBg2: "#102a49",
+        chartBg: "#06172b",
+        text: "#eaf4ff",
+        muted: "rgba(234,244,255,.72)",
+        line: "rgba(234,244,255,.18)",
+        grid: "rgba(144,205,244,.18)",
+        accent: "#63b3ed",
+        accent2: "#90cdf4"
+      },
+      "warm-paper": {
+        appBg: "#eee2cb",
+        panelBg: "#fff7e8",
+        panelBg2: "#f7ead2",
+        chartBg: "#fffdf7",
+        text: "#2f2418",
+        muted: "rgba(47,36,24,.68)",
+        line: "rgba(47,36,24,.16)",
+        grid: "rgba(47,36,24,.13)",
+        accent: "#9c5b23",
+        accent2: "#b7791f"
+      }
+    };
+
+    function applyTheme() {
+      const selectedTheme = themes[els.themePreset.value] || themes["diesel-dark"];
       const root = document.documentElement;
 
-      root.style.setProperty("--app-bg", els.appBgColor.value);
-      root.style.setProperty("--panel-bg", els.panelBgColor.value);
-      root.style.setProperty("--panel-bg-2", shiftHex(els.panelBgColor.value, 18));
-      root.style.setProperty("--chart-bg", els.chartBgColor.value);
-      root.style.setProperty("--text", els.textColor.value);
-      root.style.setProperty("--muted", hexToRgba(els.textColor.value, .70));
-      root.style.setProperty("--line", hexToRgba(els.textColor.value, .18));
-    }
-
-    function resetColors() {
-      els.appBgColor.value = "#0f1412";
-      els.panelBgColor.value = "#151d19";
-      els.chartBgColor.value = "#0b100d";
-      els.gridColor.value = "#ffffff";
-      els.textColor.value = "#eef5ef";
-
-      applyUserColors();
-      drawGraph();
+      root.style.setProperty("--app-bg", selectedTheme.appBg);
+      root.style.setProperty("--panel-bg", selectedTheme.panelBg);
+      root.style.setProperty("--panel-bg-2", selectedTheme.panelBg2);
+      root.style.setProperty("--chart-bg", selectedTheme.chartBg);
+      root.style.setProperty("--text", selectedTheme.text);
+      root.style.setProperty("--muted", selectedTheme.muted);
+      root.style.setProperty("--line", selectedTheme.line);
+      root.style.setProperty("--grid", selectedTheme.grid);
+      root.style.setProperty("--accent", selectedTheme.accent);
+      root.style.setProperty("--accent-2", selectedTheme.accent2);
     }
 
     function buildPrintMeta() {
@@ -1744,11 +1768,10 @@
       drawEmptyMessage(ctx, width, height, "Upload an OBD CSV to graph data");
     }
 
-    applyUserColors();
+    applyTheme();
     renderSeriesList();
     renderNotesList();
     drawPlaceholder();
   </script>
 </body>
 </html>
-
