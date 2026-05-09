@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poppe's Diesel Co. OBD CSV Viewer v0.2</title>
+  <style>
+    :root {
+      --app-bg: #0f1412;
+      --panel-bg: #151d19;
+      --panel-bg-2: #1d2822;
+      --chart-bg: #0b100d;
+      --text: #eef5ef;
+      --muted: #aebaae;
+      --line: #2f3d35;
+      --grid: rgba(255,255,255,.10);
+      --accent: #68d391;
+      --accent-2: #9ae6b4;
+      --danger: #f56565;
+      --warn: #ecc94b;
+      --radius: 18px;
+      --shadow: 0 16px 40px rgba(0,0,0,.28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--app-bg);
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(104,211,145,.10), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(144,205,244,.09), transparent 34%),
+        var(--app-bg);
+      min-height: 100vh;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--app-bg) 88%, black 12%);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(8px);
+    }
+
+    .header-inner {
+      width: min(1480px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 24px 0 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.55rem, 3vw, 2.45rem);
+      letter-spacing: -.04em;
+      line-height: 1;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.4;
+      max-width: 850px;
+    }
+
+    .version {
+      color: var(--accent-2);
+      border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: .86rem;
+      white-space: nowrap;
+    }
+
+    main {
+      width: min(1480px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 22px 0 38px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    @media (max-width: 1050px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, var(--panel-bg-2), var(--panel-bg));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .graph-card {
+      padding: 18px;
+    }
+
+    .graph-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .graph-title-block h2,
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 1.08rem;
+      letter-spacing: -.015em;
+    }
+
+    .graph-title-block h2 {
+      margin-bottom: 6px;
+      font-size: 1.2rem;
+    }
+
+    .graph-subtitle {
+      color: var(--muted);
+      font-size: .88rem;
+      line-height: 1.35;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    @media (max-width: 520px) {
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field {
+      margin-bottom: 13px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--app-bg) 86%, black 14%);
+      color: var(--text);
+      padding: 10px 11px;
+      font-size: .95rem;
+      outline: none;
+    }
+
+    input[type="color"] {
+      height: 42px;
+      padding: 4px;
+      cursor: pointer;
+    }
+
+    input[type="file"] {
+      padding: 10px;
+    }
+
+    textarea {
+      min-height: 84px;
+      resize: vertical;
+      line-height: 1.4;
+    }
+
+    button {
+      background: linear-gradient(180deg, #2f855a, #276749);
+      border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .08s ease, filter .12s ease, opacity .12s ease;
+    }
+
+    button:hover {
+      filter: brightness(1.08);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button:disabled,
+    select:disabled,
+    input:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: color-mix(in srgb, var(--app-bg) 90%, white 10%);
+      color: var(--accent-2);
+    }
+
+    button.danger {
+      background: color-mix(in srgb, var(--danger) 22%, var(--app-bg));
+      color: #fff;
+      border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .button-row > * {
+      flex: 1 1 140px;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: .9rem;
+      line-height: 1.4;
+      min-height: 20px;
+    }
+
+    .status.good { color: var(--accent-2); }
+    .status.warn { color: var(--warn); }
+    .status.bad { color: var(--danger); }
+
+    .mini {
+      color: var(--muted);
+      font-size: .8rem;
+      line-height: 1.35;
+    }
+
+    .divider {
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: 17px 0;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--app-bg) 70%, transparent);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 6px 9px;
+      font-size: .78rem;
+    }
+
+    .chart-shell {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--chart-bg);
+      padding: 12px;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 560px;
+      min-height: 420px;
+      background: var(--chart-bg);
+      border-radius: 12px;
+      cursor: crosshair;
+    }
+
+    @media (max-width: 720px) {
+      canvas {
+        height: 460px;
+      }
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(110px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 760px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .stat {
+      background: color-mix(in srgb, var(--app-bg) 72%, transparent);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      min-height: 74px;
+    }
+
+    .stat .k {
+      color: var(--muted);
+      font-size: .78rem;
+      margin-bottom: 8px;
+    }
+
+    .stat .v {
+      font-size: 1.28rem;
+      font-weight: 900;
+      letter-spacing: -.02em;
+    }
+
+    .series-list,
+    .notes-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .series-item,
+    .note-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--app-bg) 70%, transparent);
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .series-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.42);
+    }
+
+    .series-name,
+    .note-text {
+      min-width: 0;
+    }
+
+    .series-name strong,
+    .note-text strong {
+      display: block;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-size: .92rem;
+    }
+
+    .series-name span,
+    .note-text span {
+      display: block;
+      color: var(--muted);
+      font-size: .78rem;
+      margin-top: 3px;
+      line-height: 1.3;
+    }
+
+    .series-actions {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .series-actions input[type="color"] {
+      width: 42px;
+      height: 34px;
+      padding: 3px;
+    }
+
+    .tiny-btn {
+      width: auto;
+      padding: 7px 9px;
+      border-radius: 10px;
+      font-size: .78rem;
+      white-space: nowrap;
+    }
+
+    .toggle-row {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 9px;
+      align-items: start;
+      margin-bottom: 10px;
+    }
+
+    .toggle-row input {
+      width: auto;
+      margin-top: 2px;
+    }
+
+    .toggle-row label {
+      margin: 0;
+      color: var(--text);
+      font-size: .9rem;
+      line-height: 1.35;
+    }
+
+    .toggle-row .hint {
+      color: var(--muted);
+      font-size: .78rem;
+      margin-top: 3px;
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--app-bg) 68%, transparent);
+      padding: 11px 12px;
+    }
+
+    summary {
+      cursor: pointer;
+      color: var(--accent-2);
+      font-weight: 800;
+    }
+
+    .table-wrap {
+      max-height: 260px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin-top: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .83rem;
+    }
+
+    th,
+    td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--panel-bg);
+      color: var(--accent-2);
+    }
+
+    td {
+      color: var(--text);
+    }
+
+    .print-report {
+      display: none;
+    }
+
+    @media print {
+      body {
+        background: white !important;
+        color: black !important;
+      }
+
+      header,
+      .side,
+      .data-card,
+      .screen-only {
+        display: none !important;
+      }
+
+      main {
+        width: 100%;
+        padding: 0;
+      }
+
+      .layout {
+        display: block;
+      }
+
+      .card,
+      .graph-card {
+        box-shadow: none;
+        border: none;
+        background: white !important;
+        color: black !important;
+      }
+
+      .chart-shell {
+        background: white !important;
+        border: 1px solid #ccc;
+      }
+
+      canvas {
+        background: white !important;
+        height: 520px;
+      }
+
+      .print-report {
+        display: block;
+        margin-bottom: 16px;
+      }
+
+      .stat {
+        background: white !important;
+        border: 1px solid #ccc;
+      }
+
+      .stat .k {
+        color: #444 !important;
+      }
+
+      .stat .v {
+        color: black !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <h1>Poppe's Diesel Co. OBD CSV Viewer</h1>
+        <div class="subtitle">Offline CSV upload → multiple graph lines → custom colors → subtle graph notes → quick diagnostic stats.</div>
+      </div>
+      <div class="version">v0.2 multi-line + notes</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="layout">
+      <aside class="stack side">
+        <section class="card">
+          <h2>1. Upload OBD CSV</h2>
+
+          <div class="field">
+            <label for="csvFile">CSV file from OBDLink / scanner app</label>
+            <input id="csvFile" type="file" accept=".csv,text/csv" />
+          </div>
+
+          <div class="status" id="status">No file loaded yet.</div>
+          <div class="pill-row" id="filePills"></div>
+        </section>
+
+        <section class="card">
+          <h2>2. Graph Setup</h2>
+
+          <div class="field">
+            <label for="xColumn">X-axis</label>
+            <select id="xColumn" disabled>
+              <option>Upload CSV first</option>
+            </select>
+            <div class="mini">Usually time, timestamp, seconds, sample number, or row number.</div>
+          </div>
+
+          <div class="field">
+            <label for="lineColumn">Data line / PID</label>
+            <select id="lineColumn" disabled>
+              <option>Upload CSV first</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="lineColor">Line color</label>
+              <input id="lineColor" type="color" value="#68d391" disabled />
+            </div>
+
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="addLineBtn" disabled>Add Line</button>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button id="drawBtn" disabled>Redraw Graph</button>
+            <button id="clearLinesBtn" class="secondary" disabled>Clear Lines</button>
+          </div>
+
+          <hr class="divider" />
+
+          <h2>Active Lines</h2>
+          <div class="series-list" id="seriesList">
+            <div class="mini">No lines added yet.</div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>3. Visibility Colors</h2>
+
+          <div class="row">
+            <div class="field">
+              <label for="appBgColor">Page background</label>
+              <input id="appBgColor" type="color" value="#0f1412" />
+            </div>
+
+            <div class="field">
+              <label for="panelBgColor">Panel background</label>
+              <input id="panelBgColor" type="color" value="#151d19" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="chartBgColor">Graph background</label>
+              <input id="chartBgColor" type="color" value="#0b100d" />
+            </div>
+
+            <div class="field">
+              <label for="gridColor">Graph grid color</label>
+              <input id="gridColor" type="color" value="#ffffff" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="textColor">Text color</label>
+              <input id="textColor" type="color" value="#eef5ef" />
+            </div>
+
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="resetColorsBtn" class="secondary">Reset Colors</button>
+            </div>
+          </div>
+
+          <div class="mini">Use this when a graph is hard to see on a projector, laptop screen, or printed report.</div>
+        </section>
+
+        <section class="card">
+          <h2>4. Graph Notes</h2>
+
+          <div class="toggle-row">
+            <input id="noteMode" type="checkbox" />
+            <div>
+              <label for="noteMode">Add note mode</label>
+              <div class="hint">Turn on, then click near a line point on the graph. The note marker stays subtle so it does not block the whole graph.</div>
+            </div>
+          </div>
+
+          <div class="toggle-row">
+            <input id="showNotes" type="checkbox" checked />
+            <div>
+              <label for="showNotes">Show subtle note markers</label>
+              <div class="hint">Markers are intentionally small and low-profile.</div>
+            </div>
+          </div>
+
+          <div class="notes-list" id="notesList">
+            <div class="mini">No graph notes yet.</div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>5. Report Notes</h2>
+
+          <div class="row">
+            <div class="field">
+              <label for="vehicle">Vehicle</label>
+              <input id="vehicle" type="text" placeholder="2011 Cadillac, 7.3 Ford, etc." />
+            </div>
+
+            <div class="field">
+              <label for="customer">Customer / RO</label>
+              <input id="customer" type="text" placeholder="Name or job number" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="concern">Customer Concern</label>
+            <textarea id="concern" placeholder="Example: intermittent low voltage / steering assist concern"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="notes">Diagnostic Notes</label>
+            <textarea id="notes" placeholder="Write your technician notes here..."></textarea>
+          </div>
+
+          <button class="secondary" id="printBtn">Print / Save as PDF</button>
+
+          <p class="mini" style="margin-top:12px;">
+            This file runs locally in your browser. It does not upload your CSV anywhere.
+          </p>
+        </section>
+      </aside>
+
+      <section class="stack">
+        <section class="card graph-card">
+          <div class="print-report">
+            <h2>Poppe's Diesel Co. OBD Diagnostic Graph Report</h2>
+            <p id="printMeta"></p>
+          </div>
+
+          <div class="graph-top">
+            <div class="graph-title-block">
+              <h2 id="chartTitle">Graph</h2>
+              <div class="graph-subtitle" id="chartSubtitle">Upload a CSV, add one or more data lines, then redraw the graph.</div>
+            </div>
+
+            <div class="screen-only" style="min-width:220px;">
+              <div class="status" id="graphStatus">Ready for CSV upload.</div>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat">
+              <div class="k">Active Lines</div>
+              <div class="v" id="activeLinesStat">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">Samples</div>
+              <div class="v" id="samplesStat">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">X-Axis</div>
+              <div class="v" id="xAxisStat">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">Notes</div>
+              <div class="v" id="notesStat">—</div>
+            </div>
+          </div>
+
+          <div class="chart-shell">
+            <canvas id="chart"></canvas>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Line Stats</h2>
+          <div class="table-wrap">
+            <table id="statsTable">
+              <thead>
+                <tr>
+                  <th>Line</th>
+                  <th>Samples</th>
+                  <th>Minimum</th>
+                  <th>Average</th>
+                  <th>Maximum</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="5">No graph lines yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card data-card">
+          <details>
+            <summary>Data Preview</summary>
+            <div class="mini" style="margin-top:10px;">Shows the first rows so you can verify the CSV loaded correctly.</div>
+            <div class="table-wrap">
+              <table id="previewTable">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    let headers = [];
+    let rawRows = [];
+    let parsedData = [];
+    let currentFileName = "";
+    let graphLines = [];
+    let graphNotes = [];
+    let lastRenderPoints = [];
+    let graphBounds = null;
+
+    const defaultPalette = [
+      "#68d391", "#90cdf4", "#f6ad55", "#fc8181", "#b794f4",
+      "#f687b3", "#4fd1c5", "#faf089", "#63b3ed", "#c6f6d5"
+    ];
+
+    const els = {
+      file: document.getElementById("csvFile"),
+      status: document.getElementById("status"),
+      filePills: document.getElementById("filePills"),
+      xColumn: document.getElementById("xColumn"),
+      lineColumn: document.getElementById("lineColumn"),
+      lineColor: document.getElementById("lineColor"),
+      addLineBtn: document.getElementById("addLineBtn"),
+      drawBtn: document.getElementById("drawBtn"),
+      clearLinesBtn: document.getElementById("clearLinesBtn"),
+      seriesList: document.getElementById("seriesList"),
+      chart: document.getElementById("chart"),
+      chartTitle: document.getElementById("chartTitle"),
+      chartSubtitle: document.getElementById("chartSubtitle"),
+      graphStatus: document.getElementById("graphStatus"),
+      activeLinesStat: document.getElementById("activeLinesStat"),
+      samplesStat: document.getElementById("samplesStat"),
+      xAxisStat: document.getElementById("xAxisStat"),
+      notesStat: document.getElementById("notesStat"),
+      statsTable: document.getElementById("statsTable"),
+      previewTable: document.getElementById("previewTable"),
+      noteMode: document.getElementById("noteMode"),
+      showNotes: document.getElementById("showNotes"),
+      notesList: document.getElementById("notesList"),
+      printBtn: document.getElementById("printBtn"),
+      printMeta: document.getElementById("printMeta"),
+      vehicle: document.getElementById("vehicle"),
+      customer: document.getElementById("customer"),
+      concern: document.getElementById("concern"),
+      notes: document.getElementById("notes"),
+      appBgColor: document.getElementById("appBgColor"),
+      panelBgColor: document.getElementById("panelBgColor"),
+      chartBgColor: document.getElementById("chartBgColor"),
+      gridColor: document.getElementById("gridColor"),
+      textColor: document.getElementById("textColor"),
+      resetColorsBtn: document.getElementById("resetColorsBtn")
+    };
+
+    els.file.addEventListener("change", handleFile);
+    els.addLineBtn.addEventListener("click", addSelectedLine);
+    els.drawBtn.addEventListener("click", drawGraph);
+    els.clearLinesBtn.addEventListener("click", clearLines);
+    els.xColumn.addEventListener("change", drawGraph);
+    els.chart.addEventListener("click", handleChartClick);
+    els.showNotes.addEventListener("change", drawGraph);
+    els.printBtn.addEventListener("click", () => {
+      els.printMeta.innerHTML = buildPrintMeta();
+      window.print();
+    });
+
+    [els.appBgColor, els.panelBgColor, els.chartBgColor, els.gridColor, els.textColor].forEach(input => {
+      input.addEventListener("input", applyUserColors);
+    });
+
+    els.resetColorsBtn.addEventListener("click", resetColors);
+
+    function handleFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      currentFileName = file.name;
+      const reader = new FileReader();
+
+      reader.onload = e => {
+        try {
+          const text = e.target.result;
+          const rows = parseCSV(text);
+
+          if (!rows.length) throw new Error("No rows found in CSV.");
+
+          headers = rows[0].map(cleanHeader);
+          rawRows = rows.slice(1).filter(row => row.some(value => String(value || "").trim() !== ""));
+
+          parsedData = rawRows.map((row, index) => {
+            const obj = { "__rowNumber": index + 1 };
+            headers.forEach((header, columnIndex) => {
+              obj[header] = row[columnIndex] ?? "";
+            });
+            return obj;
+          });
+
+          if (!headers.length || !parsedData.length) {
+            throw new Error("CSV did not contain usable headers and rows.");
+          }
+
+          graphLines = [];
+          graphNotes = [];
+
+          populateDropdowns();
+          renderPreview();
+          renderFilePills();
+          enableControls();
+          pickSmartDefaults();
+          addAutoLine();
+
+          setStatus("Loaded " + parsedData.length + " rows and " + headers.length + " columns.", "good");
+          drawGraph();
+        } catch (err) {
+          console.error(err);
+          setStatus("Could not read CSV: " + err.message, "bad");
+        }
+      };
+
+      reader.onerror = () => setStatus("Could not read file.", "bad");
+      reader.readAsText(file);
+    }
+
+    function cleanHeader(header) {
+      const cleaned = String(header || "").trim();
+      return cleaned || "Unnamed Column";
+    }
+
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let field = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const next = text[i + 1];
+
+        if (char === '"' && inQuotes && next === '"') {
+          field += '"';
+          i++;
+        } else if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === "," && !inQuotes) {
+          row.push(field);
+          field = "";
+        } else if ((char === "\n" || char === "\r") && !inQuotes) {
+          if (char === "\r" && next === "\n") i++;
+          row.push(field);
+          if (row.some(value => String(value).trim() !== "")) rows.push(row);
+          row = [];
+          field = "";
+        } else {
+          field += char;
+        }
+      }
+
+      if (field.length || row.length) {
+        row.push(field);
+        if (row.some(value => String(value).trim() !== "")) rows.push(row);
+      }
+
+      return rows;
+    }
+
+    function enableControls() {
+      [
+        els.xColumn,
+        els.lineColumn,
+        els.lineColor,
+        els.addLineBtn,
+        els.drawBtn,
+        els.clearLinesBtn
+      ].forEach(el => el.disabled = false);
+    }
+
+    function populateDropdowns() {
+      const allXColumns = ["__rowNumber", ...headers];
+
+      fillSelect(els.xColumn, allXColumns, "__rowNumber", value => {
+        return value === "__rowNumber" ? "Row Number" : value;
+      });
+
+      const numericHeaders = headers.filter(columnHasNumbers);
+      fillSelect(els.lineColumn, numericHeaders.length ? numericHeaders : headers, "", value => value);
+    }
+
+    function fillSelect(select, values, selected, labelFn) {
+      select.innerHTML = "";
+
+      values.forEach(value => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = labelFn(value);
+        if (value === selected) option.selected = true;
+        select.appendChild(option);
+      });
+    }
+
+    function pickSmartDefaults() {
+      const xWords = ["time", "timestamp", "date", "datetime", "elapsed", "second", "sample"];
+      const yWords = ["voltage", "battery", "control module", "rpm", "engine speed", "coolant", "boost", "map", "vehicle speed", "speed"];
+
+      const lowerHeaders = headers.map(h => h.toLowerCase());
+
+      const xIndex = lowerHeaders.findIndex(header => xWords.some(word => header.includes(word)));
+      els.xColumn.value = xIndex >= 0 ? headers[xIndex] : "__rowNumber";
+
+      const yIndex = lowerHeaders.findIndex((header, index) => {
+        return yWords.some(word => header.includes(word)) && columnHasNumbers(headers[index]);
+      });
+
+      if (yIndex >= 0) {
+        els.lineColumn.value = headers[yIndex];
+      } else {
+        const firstNumeric = headers.find(columnHasNumbers);
+        if (firstNumeric) els.lineColumn.value = firstNumeric;
+      }
+    }
+
+    function addAutoLine() {
+      const col = els.lineColumn.value;
+      if (col) {
+        graphLines.push({
+          id: makeId(),
+          column: col,
+          color: defaultPalette[0],
+          visible: true
+        });
+        els.lineColor.value = defaultPalette[1];
+        renderSeriesList();
+      }
+    }
+
+    function addSelectedLine() {
+      const column = els.lineColumn.value;
+      if (!column) return;
+
+      const color = els.lineColor.value || defaultPalette[graphLines.length % defaultPalette.length];
+
+      graphLines.push({
+        id: makeId(),
+        column,
+        color,
+        visible: true
+      });
+
+      const nextColor = defaultPalette[graphLines.length % defaultPalette.length];
+      els.lineColor.value = nextColor;
+
+      renderSeriesList();
+      drawGraph();
+    }
+
+    function clearLines() {
+      graphLines = [];
+      graphNotes = [];
+      renderSeriesList();
+      renderNotesList();
+      drawGraph();
+    }
+
+    function renderSeriesList() {
+      els.seriesList.innerHTML = "";
+
+      if (!graphLines.length) {
+        els.seriesList.innerHTML = '<div class="mini">No lines added yet.</div>';
+        return;
+      }
+
+      graphLines.forEach((line, index) => {
+        const item = document.createElement("div");
+        item.className = "series-item";
+
+        const dot = document.createElement("div");
+        dot.className = "series-dot";
+        dot.style.background = line.color;
+
+        const name = document.createElement("div");
+        name.className = "series-name";
+        name.innerHTML = "<strong>" + escapeHtml(line.column) + "</strong><span>Line " + (index + 1) + (line.visible ? "" : " · hidden") + "</span>";
+
+        const actions = document.createElement("div");
+        actions.className = "series-actions";
+
+        const color = document.createElement("input");
+        color.type = "color";
+        color.value = line.color;
+        color.title = "Change line color";
+        color.addEventListener("input", () => {
+          line.color = color.value;
+          dot.style.background = line.color;
+          drawGraph();
+        });
+
+        const toggle = document.createElement("button");
+        toggle.className = "tiny-btn secondary";
+        toggle.textContent = line.visible ? "Hide" : "Show";
+        toggle.addEventListener("click", () => {
+          line.visible = !line.visible;
+          renderSeriesList();
+          drawGraph();
+        });
+
+        const remove = document.createElement("button");
+        remove.className = "tiny-btn danger";
+        remove.textContent = "Remove";
+        remove.addEventListener("click", () => {
+          graphLines = graphLines.filter(existing => existing.id !== line.id);
+          graphNotes = graphNotes.filter(note => note.lineId !== line.id);
+          renderSeriesList();
+          renderNotesList();
+          drawGraph();
+        });
+
+        actions.appendChild(color);
+        actions.appendChild(toggle);
+        actions.appendChild(remove);
+
+        item.appendChild(dot);
+        item.appendChild(name);
+        item.appendChild(actions);
+
+        els.seriesList.appendChild(item);
+      });
+    }
+
+    function renderNotesList() {
+      els.notesList.innerHTML = "";
+
+      if (!graphNotes.length) {
+        els.notesList.innerHTML = '<div class="mini">No graph notes yet.</div>';
+        els.notesStat.textContent = "0";
+        return;
+      }
+
+      graphNotes.forEach((note, index) => {
+        const item = document.createElement("div");
+        item.className = "note-item";
+
+        const dot = document.createElement("div");
+        dot.className = "series-dot";
+        dot.style.background = note.color || "#ffffff";
+        dot.style.opacity = ".7";
+
+        const text = document.createElement("div");
+        text.className = "note-text";
+        text.innerHTML =
+          "<strong>Note " + (index + 1) + ": " + escapeHtml(note.text) + "</strong>" +
+          "<span>" + escapeHtml(note.column) + " · " + escapeHtml(note.xLabel) + " · " + formatNumber(note.yValue) + "</span>";
+
+        const remove = document.createElement("button");
+        remove.className = "tiny-btn danger";
+        remove.textContent = "Delete";
+        remove.addEventListener("click", () => {
+          graphNotes = graphNotes.filter(existing => existing.id !== note.id);
+          renderNotesList();
+          drawGraph();
+        });
+
+        item.appendChild(dot);
+        item.appendChild(text);
+        item.appendChild(remove);
+
+        els.notesList.appendChild(item);
+      });
+
+      els.notesStat.textContent = String(graphNotes.length);
+    }
+
+    function drawGraph() {
+      applyUserColors();
+
+      const canvas = els.chart;
+      const ctx = canvas.getContext("2d");
+
+      const cssWidth = canvas.clientWidth || 1000;
+      const cssHeight = canvas.clientHeight || 560;
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = Math.floor(cssWidth * dpr);
+      canvas.height = Math.floor(cssHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const width = cssWidth;
+      const height = cssHeight;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const chartBg = getComputedStyle(document.documentElement).getPropertyValue("--chart-bg").trim() || "#0b100d";
+      ctx.fillStyle = chartBg;
+      ctx.fillRect(0, 0, width, height);
+
+      lastRenderPoints = [];
+      graphBounds = null;
+
+      const visibleLines = graphLines.filter(line => line.visible);
+      const xCol = els.xColumn.value || "__rowNumber";
+
+      if (!parsedData.length || !visibleLines.length) {
+        drawEmptyMessage(ctx, width, height, parsedData.length ? "Add a data line to draw the graph" : "Upload an OBD CSV to graph data");
+        updateMainStats(0, 0, xCol);
+        renderStatsTable([]);
+        setGraphStatus(parsedData.length ? "CSV loaded. Add a data line." : "Ready for CSV upload.", parsedData.length ? "warn" : "");
+        return;
+      }
+
+      const lineSeries = visibleLines.map(line => ({
+        line,
+        points: getSeries(xCol, line.column)
+      })).filter(series => series.points.length >= 2);
+
+      if (!lineSeries.length) {
+        drawEmptyMessage(ctx, width, height, "Not enough numeric data in the active line(s)");
+        setGraphStatus("Not enough numeric data found for the active line(s).", "bad");
+        renderStatsTable([]);
+        return;
+      }
+
+      const pad = { top: 42, right: 34, bottom: 66, left: 76 };
+      const chartW = width - pad.left - pad.right;
+      const chartH = height - pad.top - pad.bottom;
+
+      const allPoints = lineSeries.flatMap(series => series.points);
+      let minX = Math.min(...allPoints.map(point => point.x));
+      let maxX = Math.max(...allPoints.map(point => point.x));
+      let minY = Math.min(...allPoints.map(point => point.y));
+      let maxY = Math.max(...allPoints.map(point => point.y));
+
+      if (minX === maxX) maxX = minX + 1;
+      if (minY === maxY) {
+        minY -= 1;
+        maxY += 1;
+      }
+
+      const yPad = (maxY - minY) * .08;
+      minY -= yPad;
+      maxY += yPad;
+
+      const sx = x => pad.left + ((x - minX) / (maxX - minX)) * chartW;
+      const sy = y => pad.top + chartH - ((y - minY) / (maxY - minY)) * chartH;
+
+      graphBounds = { pad, chartW, chartH, minX, maxX, minY, maxY, sx, sy };
+
+      drawGrid(ctx, width, height, pad, chartW, chartH, minX, maxX, minY, maxY);
+      drawAxes(ctx, width, height, pad, chartW, chartH);
+
+      lineSeries.forEach(series => {
+        drawLine(ctx, series.points, sx, sy, series.line.color, 2.4);
+
+        series.points.forEach(point => {
+          lastRenderPoints.push({
+            lineId: series.line.id,
+            column: series.line.column,
+            color: series.line.color,
+            x: point.x,
+            y: point.y,
+            xLabel: point.xLabel,
+            yValue: point.y,
+            screenX: sx(point.x),
+            screenY: sy(point.y)
+          });
+        });
+      });
+
+      if (els.showNotes.checked) {
+        drawNotes(ctx);
+      }
+
+      drawLegend(ctx, lineSeries, width, pad);
+
+      const totalSamples = lineSeries.reduce((sum, series) => sum + series.points.length, 0);
+      updateMainStats(lineSeries.length, totalSamples, xCol);
+      renderStatsTable(lineSeries);
+      updateTitles(lineSeries, xCol);
+      setGraphStatus("Graph drawn with " + lineSeries.length + " active line(s).", "good");
+    }
+
+    function getSeries(xCol, yCol) {
+      const points = [];
+
+      for (let i = 0; i < parsedData.length; i++) {
+        const row = parsedData[i];
+        const y = toNumber(row[yCol]);
+        if (y === null) continue;
+
+        const xRaw = xCol === "__rowNumber" ? row.__rowNumber : row[xCol];
+        let x = toNumber(xRaw);
+
+        if (xCol !== "__rowNumber" && isProbablyTime(String(xRaw))) {
+          x = i + 1;
+        }
+
+        if (x === null) x = i + 1;
+
+        points.push({
+          x,
+          y,
+          xLabel: xCol === "__rowNumber" ? "Row " + row.__rowNumber : String(xRaw)
+        });
+      }
+
+      return points;
+    }
+
+    function toNumber(value) {
+      if (value === null || value === undefined) return null;
+
+      const raw = String(value).trim();
+      if (!raw) return null;
+
+      const match = raw.replace(/,/g, "").match(/-?\d+(\.\d+)?/);
+      if (!match) return null;
+
+      const number = Number(match[0]);
+      return Number.isFinite(number) ? number : null;
+    }
+
+    function isProbablyTime(value) {
+      return /:/.test(value) || /\d{1,2}\/\d{1,2}/.test(value) || /\d{4}-\d{1,2}-\d{1,2}/.test(value);
+    }
+
+    function columnHasNumbers(column) {
+      let count = 0;
+
+      for (const row of parsedData.slice(0, 80)) {
+        if (toNumber(row[column]) !== null) count++;
+      }
+
+      return count >= 2;
+    }
+
+    function drawEmptyMessage(ctx, width, height, message) {
+      ctx.fillStyle = getCss("--muted", "#aebaae");
+      ctx.font = "22px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(message, width / 2, height / 2);
+    }
+
+    function drawGrid(ctx, width, height, pad, chartW, chartH, minX, maxX, minY, maxY) {
+      const gridColor = hexToRgba(els.gridColor.value, .16);
+      const textColor = getCss("--text", "#eef5ef");
+
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = 1;
+      ctx.fillStyle = hexToRgba(textColor, .78);
+      ctx.font = "12px Arial";
+
+      const yTicks = 6;
+      for (let i = 0; i <= yTicks; i++) {
+        const t = i / yTicks;
+        const y = pad.top + t * chartH;
+        const value = maxY - t * (maxY - minY);
+
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(width - pad.right, y);
+        ctx.stroke();
+
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(formatNumber(value), pad.left - 10, y);
+      }
+
+      const xTicks = 6;
+      for (let i = 0; i <= xTicks; i++) {
+        const t = i / xTicks;
+        const x = pad.left + t * chartW;
+        const value = minX + t * (maxX - minX);
+
+        ctx.beginPath();
+        ctx.moveTo(x, pad.top);
+        ctx.lineTo(x, pad.top + chartH);
+        ctx.stroke();
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText(formatNumber(value), x, pad.top + chartH + 13);
+      }
+    }
+
+    function drawAxes(ctx, width, height, pad, chartW, chartH) {
+      ctx.strokeStyle = hexToRgba(els.textColor.value, .50);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + chartH);
+      ctx.lineTo(width - pad.right, pad.top + chartH);
+      ctx.stroke();
+    }
+
+    function drawLine(ctx, points, sx, sy, color, width) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+
+      points.forEach((point, index) => {
+        const x = sx(point.x);
+        const y = sy(point.y);
+
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+
+      const step = Math.max(1, Math.floor(points.length / 20));
+      for (let i = 0; i < points.length; i += step) {
+        const point = points[i];
+        ctx.beginPath();
+        ctx.arc(sx(point.x), sy(point.y), 2.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawLegend(ctx, lineSeries, width, pad) {
+      const maxLegendItems = 9;
+      const startX = Math.max(pad.left + 10, width - pad.right - 270);
+      let y = 20;
+
+      ctx.font = "12px Arial";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+
+      lineSeries.slice(0, maxLegendItems).forEach(series => {
+        ctx.fillStyle = series.line.color;
+        ctx.fillRect(startX, y - 5, 22, 4);
+        ctx.fillStyle = getCss("--text", "#eef5ef");
+        ctx.fillText(series.line.column, startX + 30, y);
+        y += 20;
+      });
+
+      if (lineSeries.length > maxLegendItems) {
+        ctx.fillStyle = getCss("--muted", "#aebaae");
+        ctx.fillText("+" + (lineSeries.length - maxLegendItems) + " more", startX + 30, y);
+      }
+    }
+
+    function drawNotes(ctx) {
+      graphNotes.forEach((note, index) => {
+        const matching = lastRenderPoints.find(point => point.lineId === note.lineId && point.x === note.x && point.yValue === note.yValue);
+        if (!matching) return;
+
+        ctx.save();
+        ctx.globalAlpha = .42;
+        ctx.fillStyle = note.color || "#ffffff";
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.arc(matching.screenX, matching.screenY, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.globalAlpha = .72;
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 10px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(index + 1), matching.screenX, matching.screenY + .5);
+        ctx.restore();
+      });
+    }
+
+    function handleChartClick(event) {
+      if (!els.noteMode.checked || !lastRenderPoints.length) return;
+
+      const rect = els.chart.getBoundingClientRect();
+      const clickX = event.clientX - rect.left;
+      const clickY = event.clientY - rect.top;
+
+      let nearest = null;
+      let nearestDistance = Infinity;
+
+      lastRenderPoints.forEach(point => {
+        const dx = point.screenX - clickX;
+        const dy = point.screenY - clickY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < nearestDistance) {
+          nearest = point;
+          nearestDistance = distance;
+        }
+      });
+
+      if (!nearest || nearestDistance > 38) {
+        setGraphStatus("Click closer to a plotted line point to add a note.", "warn");
+        return;
+      }
+
+      const text = prompt(
+        "Add note for " + nearest.column + " at " + nearest.xLabel + " (" + formatNumber(nearest.yValue) + "):",
+        ""
+      );
+
+      if (!text || !text.trim()) return;
+
+      graphNotes.push({
+        id: makeId(),
+        lineId: nearest.lineId,
+        column: nearest.column,
+        color: nearest.color,
+        x: nearest.x,
+        xLabel: nearest.xLabel,
+        yValue: nearest.yValue,
+        text: text.trim()
+      });
+
+      renderNotesList();
+      drawGraph();
+    }
+
+    function updateMainStats(activeLines, totalSamples, xCol) {
+      els.activeLinesStat.textContent = String(activeLines);
+      els.samplesStat.textContent = totalSamples ? String(totalSamples) : "—";
+      els.xAxisStat.textContent = xCol === "__rowNumber" ? "Rows" : shorten(xCol, 14);
+      els.notesStat.textContent = String(graphNotes.length);
+    }
+
+    function updateTitles(lineSeries, xCol) {
+      const columns = lineSeries.map(series => series.line.column);
+      els.chartTitle.textContent = columns.length === 1 ? columns[0] : columns.length + " Data Lines";
+      els.chartSubtitle.textContent = "X-axis: " + (xCol === "__rowNumber" ? "Row Number" : xCol) + " · CSV: " + currentFileName;
+    }
+
+    function renderStatsTable(lineSeries) {
+      const tbody = els.statsTable.querySelector("tbody");
+      tbody.innerHTML = "";
+
+      if (!lineSeries.length) {
+        tbody.innerHTML = '<tr><td colspan="5">No graph lines yet.</td></tr>';
+        return;
+      }
+
+      lineSeries.forEach(series => {
+        const values = series.points.map(point => point.y);
+        const stats = calcStats(values);
+
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          '<td><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:' + series.line.color + ';margin-right:7px;"></span>' + escapeHtml(series.line.column) + '</td>' +
+          '<td>' + stats.count + '</td>' +
+          '<td>' + formatNumber(stats.min) + '</td>' +
+          '<td>' + formatNumber(stats.avg) + '</td>' +
+          '<td>' + formatNumber(stats.max) + '</td>';
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function calcStats(values) {
+      const nums = values.filter(Number.isFinite);
+      const sum = nums.reduce((a, b) => a + b, 0);
+
+      return {
+        count: nums.length,
+        min: nums.length ? Math.min(...nums) : NaN,
+        max: nums.length ? Math.max(...nums) : NaN,
+        avg: nums.length ? sum / nums.length : NaN
+      };
+    }
+
+    function renderPreview() {
+      const thead = els.previewTable.querySelector("thead");
+      const tbody = els.previewTable.querySelector("tbody");
+
+      thead.innerHTML = "";
+      tbody.innerHTML = "";
+
+      const headerRow = document.createElement("tr");
+      ["Row", ...headers].forEach(header => {
+        const th = document.createElement("th");
+        th.textContent = header;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+
+      parsedData.slice(0, 20).forEach(row => {
+        const tr = document.createElement("tr");
+
+        const rowCell = document.createElement("td");
+        rowCell.textContent = row.__rowNumber;
+        tr.appendChild(rowCell);
+
+        headers.forEach(header => {
+          const td = document.createElement("td");
+          td.textContent = row[header];
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderFilePills() {
+      els.filePills.innerHTML = "";
+
+      const numericCount = headers.filter(columnHasNumbers).length;
+      const items = [
+        currentFileName,
+        parsedData.length + " rows",
+        headers.length + " columns",
+        numericCount + " numeric columns"
+      ];
+
+      items.forEach(item => {
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = item;
+        els.filePills.appendChild(pill);
+      });
+    }
+
+    function setStatus(message, kind = "") {
+      els.status.textContent = message;
+      els.status.className = "status " + kind;
+    }
+
+    function setGraphStatus(message, kind = "") {
+      els.graphStatus.textContent = message;
+      els.graphStatus.className = "status " + kind;
+    }
+
+    function applyUserColors() {
+      const root = document.documentElement;
+
+      root.style.setProperty("--app-bg", els.appBgColor.value);
+      root.style.setProperty("--panel-bg", els.panelBgColor.value);
+      root.style.setProperty("--panel-bg-2", shiftHex(els.panelBgColor.value, 18));
+      root.style.setProperty("--chart-bg", els.chartBgColor.value);
+      root.style.setProperty("--text", els.textColor.value);
+      root.style.setProperty("--muted", hexToRgba(els.textColor.value, .70));
+      root.style.setProperty("--line", hexToRgba(els.textColor.value, .18));
+    }
+
+    function resetColors() {
+      els.appBgColor.value = "#0f1412";
+      els.panelBgColor.value = "#151d19";
+      els.chartBgColor.value = "#0b100d";
+      els.gridColor.value = "#ffffff";
+      els.textColor.value = "#eef5ef";
+
+      applyUserColors();
+      drawGraph();
+    }
+
+    function buildPrintMeta() {
+      const parts = [];
+
+      if (els.vehicle.value.trim()) parts.push("<strong>Vehicle:</strong> " + escapeHtml(els.vehicle.value.trim()));
+      if (els.customer.value.trim()) parts.push("<strong>Customer / RO:</strong> " + escapeHtml(els.customer.value.trim()));
+      if (currentFileName) parts.push("<strong>CSV:</strong> " + escapeHtml(currentFileName));
+      if (els.concern.value.trim()) parts.push("<strong>Concern:</strong> " + escapeHtml(els.concern.value.trim()));
+      if (els.notes.value.trim()) parts.push("<strong>Notes:</strong> " + escapeHtml(els.notes.value.trim()).replaceAll("\n", "<br>"));
+
+      if (graphNotes.length) {
+        parts.push("<strong>Graph Notes:</strong><br>" + graphNotes.map((note, index) => {
+          return (index + 1) + ". " + escapeHtml(note.column) + " @ " + escapeHtml(note.xLabel) + " = " + formatNumber(note.yValue) + " — " + escapeHtml(note.text);
+        }).join("<br>"));
+      }
+
+      return parts.join("<br>");
+    }
+
+    function formatNumber(number) {
+      if (!Number.isFinite(number)) return "—";
+      if (Math.abs(number) >= 1000) return number.toFixed(0);
+      if (Math.abs(number) >= 100) return number.toFixed(1);
+      return number.toFixed(2);
+    }
+
+    function shorten(text, max) {
+      const str = String(text || "");
+      return str.length > max ? str.slice(0, max - 1) + "…" : str;
+    }
+
+    function makeId() {
+      return "id_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function getCss(name, fallback) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+    }
+
+    function hexToRgba(hex, alpha) {
+      const parsed = parseHex(hex);
+      if (!parsed) return "rgba(255,255,255," + alpha + ")";
+
+      return "rgba(" + parsed.r + "," + parsed.g + "," + parsed.b + "," + alpha + ")";
+    }
+
+    function shiftHex(hex, amount) {
+      const parsed = parseHex(hex);
+      if (!parsed) return hex;
+
+      const r = clamp(parsed.r + amount, 0, 255);
+      const g = clamp(parsed.g + amount, 0, 255);
+      const b = clamp(parsed.b + amount, 0, 255);
+
+      return "#" + [r, g, b].map(value => value.toString(16).padStart(2, "0")).join("");
+    }
+
+    function parseHex(hex) {
+      const clean = String(hex || "").replace("#", "").trim();
+      if (!/^[0-9a-fA-F]{6}$/.test(clean)) return null;
+
+      return {
+        r: parseInt(clean.slice(0, 2), 16),
+        g: parseInt(clean.slice(2, 4), 16),
+        b: parseInt(clean.slice(4, 6), 16)
+      };
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    window.addEventListener("resize", () => {
+      if (parsedData.length) drawGraph();
+      else drawPlaceholder();
+    });
+
+    function drawPlaceholder() {
+      const canvas = els.chart;
+      const ctx = canvas.getContext("2d");
+      const width = canvas.clientWidth || 1000;
+      const height = canvas.clientHeight || 560;
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      ctx.fillStyle = getCss("--chart-bg", "#0b100d");
+      ctx.fillRect(0, 0, width, height);
+      drawEmptyMessage(ctx, width, height, "Upload an OBD CSV to graph data");
+    }
+
+    applyUserColors();
+    renderSeriesList();
+    renderNotesList();
+    drawPlaceholder();
+  </script>
+</body>
+</html>
+
