@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer REV 013</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer REV 014</title>
   <style>
     :root {
       --app-bg: #e9eef2;
@@ -1260,7 +1260,7 @@
       }
     }
   
-    /* REV 013: original light lab-scope presentation theme */
+    /* REV 014: original light lab-scope presentation theme */
     body.lab-scope-theme {
       background: linear-gradient(180deg, #f3f7fa, #e9eef2);
     }
@@ -1740,6 +1740,227 @@
       }
     }
 
+  
+    /* REV 014 Diagnostics: scrolling + activity feedback */
+    .diagnostics-panel {
+      height: min(880px, calc(100vh - 24px));
+      min-height: 560px;
+    }
+
+    .diagnostics-panel.running {
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 42%, transparent), 0 28px 90px rgba(0,0,0,.40);
+    }
+
+    body.lab-scope-theme .diagnostics-panel.running {
+      box-shadow: 0 0 0 2px rgba(63,152,197,.32), 0 28px 90px rgba(44,80,100,.25);
+    }
+
+    .diagnostics-body {
+      grid-auto-rows: minmax(260px, auto);
+      align-items: stretch;
+      padding-bottom: 18px;
+    }
+
+    .diagnostics-card {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .diagnostics-card-content {
+      min-height: 0;
+      overflow: auto;
+      max-height: 430px;
+    }
+
+    .diagnostics-card:nth-child(4) .diagnostics-card-content {
+      max-height: 520px;
+    }
+
+    .diagnostic-log {
+      max-height: none;
+      min-height: 320px;
+    }
+
+    .diagnostics-activity {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      padding: 9px 14px;
+      background: color-mix(in srgb, var(--app-bg) 52%, transparent);
+    }
+
+    .activity-light {
+      width: 15px;
+      height: 15px;
+      border-radius: 999px;
+      background: #718096;
+      box-shadow: 0 0 0 3px rgba(113,128,150,.15);
+    }
+
+    .activity-light.ready { background: #718096; }
+
+    .activity-light.running {
+      background: #1b9ad1;
+      animation: diagPulse 700ms infinite alternate;
+    }
+
+    .activity-light.good {
+      background: #1f9d55;
+      box-shadow: 0 0 0 4px rgba(31,157,85,.18), 0 0 18px rgba(31,157,85,.45);
+    }
+
+    .activity-light.warn {
+      background: #b7791f;
+      box-shadow: 0 0 0 4px rgba(183,121,31,.18), 0 0 18px rgba(183,121,31,.40);
+    }
+
+    .activity-light.bad {
+      background: #c53030;
+      box-shadow: 0 0 0 4px rgba(197,48,48,.18), 0 0 18px rgba(197,48,48,.40);
+    }
+
+    .activity-text {
+      min-width: 0;
+      color: var(--text);
+      font-size: .82rem;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .activity-time {
+      color: var(--muted);
+      font-size: .76rem;
+      white-space: nowrap;
+    }
+
+    .activity-progress {
+      grid-column: 1 / -1;
+      height: 6px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: color-mix(in srgb, var(--line) 70%, transparent);
+      position: relative;
+    }
+
+    .activity-progress-bar {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 220ms ease;
+    }
+
+    .diagnostics-panel.running .activity-progress-bar {
+      width: 100%;
+      animation: diagSweep 1.05s linear infinite;
+      transition: none;
+    }
+
+    .diagnostics-activity-log {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 3px;
+      color: var(--muted);
+      font-family: Consolas, Monaco, "Courier New", monospace;
+      font-size: .72rem;
+      line-height: 1.25;
+      max-height: 54px;
+      overflow: auto;
+    }
+
+    .diagnostics-toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 260;
+      max-width: min(420px, calc(100vw - 44px));
+      border: 1px solid color-mix(in srgb, var(--accent-2) 36%, var(--line));
+      background: color-mix(in srgb, var(--panel-bg) 92%, transparent);
+      color: var(--text);
+      box-shadow: 0 18px 45px rgba(0,0,0,.24);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 900;
+      font-size: .86rem;
+      display: none;
+    }
+
+    .diagnostics-toast.show {
+      display: block;
+      animation: toastPop 230ms ease-out;
+    }
+
+    body.lab-scope-theme .diagnostics-toast {
+      background: #f7fbff;
+      color: #173042;
+      border-color: rgba(64,132,168,.32);
+    }
+
+    @keyframes diagPulse {
+      from { transform: scale(.92); filter: brightness(.95); }
+      to { transform: scale(1.16); filter: brightness(1.25); }
+    }
+
+    @keyframes diagSweep {
+      0% { transform: translateX(-100%); width: 45%; }
+      55% { transform: translateX(70%); width: 65%; }
+      100% { transform: translateX(230%); width: 40%; }
+    }
+
+    @keyframes toastPop {
+      from { transform: translateY(8px) scale(.98); opacity: .3; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    @media (max-height: 760px) {
+      .diagnostics-panel {
+        height: calc(100vh - 14px);
+        min-height: 0;
+      }
+
+      .diagnostics-summary {
+        grid-template-columns: repeat(5, minmax(90px, 1fr));
+        padding: 8px;
+      }
+
+      .diagnostic-kpi {
+        min-height: 54px;
+        padding: 8px;
+      }
+
+      .diagnostics-card-content {
+        max-height: 320px;
+      }
+
+      .diagnostic-log {
+        min-height: 250px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .diagnostics-panel {
+        height: calc(100vh - 14px);
+        min-height: 0;
+      }
+
+      .diagnostics-activity {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .activity-time {
+        grid-column: 2;
+      }
+
+      .diagnostics-card-content {
+        max-height: 360px;
+      }
+    }
+
   </style>
 </head>
 
@@ -1753,7 +1974,7 @@
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <button id="workspaceBtn" class="header-action" type="button">Full Workspace</button>
         <button id="diagnosticsBtn" class="header-action" type="button">Diagnostics</button>
-        <div class="version">REV 013 · diagnostics console</div>
+        <div class="version">REV 014 · diagnostics activity console</div>
       </div>
     </div>
   </header>
@@ -1943,7 +2164,7 @@
           <div class="graph-top">
             <div class="graph-title-block">
               <h2 id="chartTitle">Graph</h2>
-              <div class="graph-subtitle" id="chartSubtitle">REV 013 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
+              <div class="graph-subtitle" id="chartSubtitle">REV 014 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
             </div>
 
             <div class="screen-only" style="min-width:220px;">
@@ -2109,6 +2330,18 @@
         </div>
       </div>
 
+      <div class="diagnostics-activity" id="diagnosticsActivity">
+        <div class="activity-light ready" id="diagnosticsActivityLight"></div>
+        <div class="activity-text" id="diagnosticsActivityText">Diagnostics ready.</div>
+        <div class="activity-time" id="diagnosticsActivityTime">Idle</div>
+        <div class="activity-progress">
+          <div class="activity-progress-bar" id="diagnosticsProgressBar"></div>
+        </div>
+        <div class="diagnostics-activity-log" id="diagnosticsActivityLog">
+          <div>&gt; Console initialized. Awaiting command.</div>
+        </div>
+      </div>
+
       <div class="diagnostics-summary">
         <div class="diagnostic-kpi" id="diagHealthKpi">
           <div class="label">Health</div>
@@ -2164,11 +2397,14 @@
 
       <div class="diagnostics-footer">
         <div id="diagnosticsFooterText">Diagnostics idle.</div>
-        <div><strong>REV 013</strong> · PoppeScope OBD Workstation</div>
+        <div><strong>REV 014</strong> · PoppeScope OBD Workstation</div>
       </div>
     </div>
   </div>
 
+
+
+  <div class="diagnostics-toast" id="diagnosticsToast">Diagnostics complete.</div>
 
   <script>
     let headers = [];
@@ -2216,6 +2452,13 @@
       diagnosticsTestList: document.getElementById("diagnosticsTestList"),
       diagnosticsReportText: document.getElementById("diagnosticsReportText"),
       diagnosticsFooterText: document.getElementById("diagnosticsFooterText"),
+      diagnosticsActivity: document.getElementById("diagnosticsActivity"),
+      diagnosticsActivityLight: document.getElementById("diagnosticsActivityLight"),
+      diagnosticsActivityText: document.getElementById("diagnosticsActivityText"),
+      diagnosticsActivityTime: document.getElementById("diagnosticsActivityTime"),
+      diagnosticsProgressBar: document.getElementById("diagnosticsProgressBar"),
+      diagnosticsActivityLog: document.getElementById("diagnosticsActivityLog"),
+      diagnosticsToast: document.getElementById("diagnosticsToast"),
       file: document.getElementById("csvFile"),
       status: document.getElementById("status"),
       filePills: document.getElementById("filePills"),
@@ -2378,6 +2621,8 @@
     function openDiagnosticsPanel() {
       els.diagnosticsBackdrop.classList.add("open");
       els.diagnosticsBackdrop.setAttribute("aria-hidden", "false");
+      setDiagnosticsActivity("ready", "Diagnostics console opened.");
+      addDiagnosticsActivityLog("Panel opened.");
       runDiagnostics();
     }
 
@@ -2387,22 +2632,49 @@
     }
 
     function runDiagnostics() {
-      const snapshot = collectDiagnosticsSnapshot();
-      const tests = runDiagnosticsSelfTests(snapshot);
-      const report = buildDiagnosticsReport(snapshot, tests);
+      setDiagnosticsActivity("running", "Running diagnostics sweep...");
+      addDiagnosticsActivityLog("Starting state capture...");
+      els.runDiagnosticsBtn.disabled = true;
+      els.copyDiagnosticsBtn.disabled = true;
 
-      renderDiagnosticsSnapshot(snapshot, tests, report);
+      setTimeout(() => {
+        addDiagnosticsActivityLog("Collecting runtime, CSV, graph, ruler, zoom, and event state...");
+        const snapshot = collectDiagnosticsSnapshot();
 
-      const failed = tests.filter(test => test.status === "bad").length;
-      const warned = tests.filter(test => test.status === "warn").length;
+        setTimeout(() => {
+          addDiagnosticsActivityLog("Running self-test matrix...");
+          const tests = runDiagnosticsSelfTests(snapshot);
 
-      if (failed) {
-        els.diagnosticsFooterText.innerHTML = '<span class="copy-flash" style="color:#c53030;">Diagnostics complete: ' + failed + ' failed check(s), ' + warned + ' warning(s).</span>';
-      } else if (warned) {
-        els.diagnosticsFooterText.innerHTML = '<span class="copy-flash" style="color:#b7791f;">Diagnostics complete: ' + warned + ' warning(s), no failed checks.</span>';
-      } else {
-        els.diagnosticsFooterText.innerHTML = '<span class="copy-flash">Diagnostics complete: all core checks passed.</span>';
-      }
+          setTimeout(() => {
+            addDiagnosticsActivityLog("Building copyable diagnostics report...");
+            const report = buildDiagnosticsReport(snapshot, tests);
+
+            renderDiagnosticsSnapshot(snapshot, tests, report);
+
+            const failed = tests.filter(test => test.status === "bad").length;
+            const warned = tests.filter(test => test.status === "warn").length;
+
+            els.runDiagnosticsBtn.disabled = false;
+            els.copyDiagnosticsBtn.disabled = false;
+
+            if (failed) {
+              setDiagnosticsActivity("bad", "Diagnostics complete: " + failed + " failed check(s), " + warned + " warning(s).");
+              els.diagnosticsFooterText.innerHTML = '<span class="copy-flash" style="color:#c53030;">Diagnostics complete: ' + failed + ' failed check(s), ' + warned + ' warning(s).</span>';
+              showDiagnosticsToast("Diagnostics finished with failed checks.");
+            } else if (warned) {
+              setDiagnosticsActivity("warn", "Diagnostics complete: " + warned + " warning(s), no failed checks.");
+              els.diagnosticsFooterText.innerHTML = '<span class="copy-flash" style="color:#b7791f;">Diagnostics complete: ' + warned + ' warning(s), no failed checks.</span>';
+              showDiagnosticsToast("Diagnostics finished with warnings.");
+            } else {
+              setDiagnosticsActivity("good", "Diagnostics complete: all core checks passed.");
+              els.diagnosticsFooterText.innerHTML = '<span class="copy-flash">Diagnostics complete: all core checks passed.</span>';
+              showDiagnosticsToast("Diagnostics complete. All core checks passed.");
+            }
+
+            addDiagnosticsActivityLog("Done.");
+          }, 140);
+        }, 140);
+      }, 120);
     }
 
     function collectDiagnosticsSnapshot() {
@@ -2426,7 +2698,7 @@
       const chartHeight = Math.round(canvasRect.height || 0);
 
       return {
-        rev: "REV 013",
+        rev: "REV 014",
         appName: "PoppeScope OBD Workstation",
         timestamp: new Date().toISOString(),
         localTime: new Date().toLocaleString(),
@@ -2681,16 +2953,76 @@
       return lines.join("\\n");
     }
 
+    function setDiagnosticsActivity(state, message) {
+      if (!els.diagnosticsActivityLight) return;
+
+      const panel = els.diagnosticsBackdrop ? els.diagnosticsBackdrop.querySelector(".diagnostics-panel") : null;
+      if (panel) panel.classList.toggle("running", state === "running");
+
+      els.diagnosticsActivityLight.className = "activity-light " + state;
+      els.diagnosticsActivityText.textContent = message;
+      els.diagnosticsActivityTime.textContent = new Date().toLocaleTimeString();
+
+      if (state === "running") {
+        els.diagnosticsProgressBar.style.width = "100%";
+      } else {
+        els.diagnosticsProgressBar.style.width = "100%";
+        setTimeout(() => {
+          if (els.diagnosticsProgressBar) {
+            els.diagnosticsProgressBar.style.width = state === "ready" ? "0%" : "100%";
+          }
+        }, 380);
+      }
+    }
+
+    function addDiagnosticsActivityLog(message) {
+      if (!els.diagnosticsActivityLog) return;
+
+      const line = document.createElement("div");
+      line.textContent = "> " + new Date().toLocaleTimeString() + " · " + message;
+      els.diagnosticsActivityLog.appendChild(line);
+
+      while (els.diagnosticsActivityLog.children.length > 10) {
+        els.diagnosticsActivityLog.removeChild(els.diagnosticsActivityLog.firstElementChild);
+      }
+
+      els.diagnosticsActivityLog.scrollTop = els.diagnosticsActivityLog.scrollHeight;
+    }
+
+    let diagnosticsToastTimer = null;
+
+    function showDiagnosticsToast(message) {
+      if (!els.diagnosticsToast) return;
+
+      els.diagnosticsToast.textContent = message;
+      els.diagnosticsToast.classList.add("show");
+
+      clearTimeout(diagnosticsToastTimer);
+      diagnosticsToastTimer = setTimeout(() => {
+        els.diagnosticsToast.classList.remove("show");
+      }, 2200);
+    }
+
     async function copyDiagnosticsReport() {
+      setDiagnosticsActivity("running", "Copying diagnostics report...");
+      addDiagnosticsActivityLog("Preparing clipboard payload...");
+      els.copyDiagnosticsBtn.disabled = true;
+
       const text = els.diagnosticsReportText.textContent || "";
 
       if (!text.trim() || text.includes("Run diagnostics")) {
-        runDiagnostics();
+        addDiagnosticsActivityLog("Report was stale. Generating fresh diagnostics first...");
+        const snapshot = collectDiagnosticsSnapshot();
+        const tests = runDiagnosticsSelfTests(snapshot);
+        const report = buildDiagnosticsReport(snapshot, tests);
+        renderDiagnosticsSnapshot(snapshot, tests, report);
       }
 
       const finalText = els.diagnosticsReportText.textContent || "";
 
       try {
+        await new Promise(resolve => setTimeout(resolve, 180));
+
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(finalText);
         } else {
@@ -2702,9 +3034,17 @@
           document.body.removeChild(temp);
         }
 
+        setDiagnosticsActivity("good", "Diagnostics report copied to clipboard.");
+        addDiagnosticsActivityLog("Clipboard copy complete. Characters copied: " + finalText.length + ".");
         els.diagnosticsFooterText.innerHTML = '<span class="copy-flash">Diagnostics report copied to clipboard.</span>';
+        showDiagnosticsToast("Diagnostics report copied.");
       } catch (err) {
+        setDiagnosticsActivity("bad", "Copy failed. Select the report text manually.");
+        addDiagnosticsActivityLog("Copy failed: " + (err && err.message ? err.message : "unknown error"));
         els.diagnosticsFooterText.innerHTML = '<span style="color:#c53030;font-weight:900;">Copy failed. Select the report text manually.</span>';
+        showDiagnosticsToast("Copy failed. Select the report manually.");
+      } finally {
+        els.copyDiagnosticsBtn.disabled = false;
       }
     }
 
@@ -3267,13 +3607,45 @@
     }
 
     function columnHasNumbers(column) {
-      let count = 0;
+      return isNumericDataColumn(column);
+    }
 
-      for (const row of parsedData.slice(0, 80)) {
-        if (toNumber(row[column]) !== null) count++;
+    function isNumericDataColumn(column) {
+      const name = String(column || "").toLowerCase();
+
+      // These can contain digits, but should not appear as graphable PID lines.
+      const textLikeNames = [
+        "time", "timestamp", "date", "vehicle", "vin", "note", "hint",
+        "dtc", "description", "status", "state", "mode"
+      ];
+
+      if (textLikeNames.some(word => name.includes(word))) {
+        return false;
       }
 
-      return count >= 2;
+      const sample = parsedData
+        .slice(0, 120)
+        .map(row => row[column])
+        .filter(value => String(value ?? "").trim() !== "");
+
+      if (!sample.length) return false;
+
+      let numeric = 0;
+
+      sample.forEach(value => {
+        const raw = String(value ?? "").trim();
+
+        // Accept normal PID formats like "14.2", "-3.5", "650 rpm", "13.8 V".
+        // Reject long mixed text where a random year/code number would be misleading.
+        const cleaned = raw.replace(/,/g, "");
+        const numericLike = /^[-+]?\d+(\.\d+)?\s*([a-zA-Z%/().°-]+)?$/.test(cleaned);
+
+        if (numericLike && toNumber(raw) !== null) {
+          numeric++;
+        }
+      });
+
+      return numeric >= 2 && numeric / sample.length >= 0.65;
     }
 
     function drawEmptyMessage(ctx, width, height, message) {
