@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer v0.8</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer v0.9</title>
   <style>
     :root {
-      --app-bg: #0f1412;
-      --panel-bg: #151d19;
-      --panel-bg-2: #1d2822;
-      --chart-bg: #0b100d;
+      --app-bg: #0b1110;
+      --panel-bg: #111b18;
+      --panel-bg-2: #17241f;
+      --chart-bg: #060b0a;
       --text: #eef5ef;
       --muted: #aebaae;
       --line: #2f3d35;
       --grid: rgba(255,255,255,.14);
-      --accent: #68d391;
-      --accent-2: #9ae6b4;
+      --accent: #46d7a3;
+      --accent-2: #7fffd0;
       --danger: #f56565;
       --warn: #ecc94b;
       --radius: 18px;
@@ -393,6 +393,135 @@
       flex: 0 0 auto;
     }
 
+    .workstation-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--app-bg) 72%, transparent);
+      border-radius: 16px;
+      padding: 10px;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: .78rem;
+      color: var(--muted);
+      background: color-mix(in srgb, var(--chart-bg) 76%, transparent);
+    }
+
+    .toolbar-chip strong {
+      color: var(--accent-2);
+    }
+
+    .small-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text);
+      font-size: .82rem;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .small-toggle input {
+      width: auto;
+      margin: 0;
+    }
+
+    .event-panel {
+      display: grid;
+      gap: 10px;
+    }
+
+    .event-list {
+      display: grid;
+      gap: 8px;
+      max-height: 210px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .event-item {
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--app-bg) 70%, transparent);
+      border-radius: 13px;
+      padding: 9px 10px;
+      display: grid;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .event-item:hover {
+      border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+    }
+
+    .event-item strong {
+      color: var(--text);
+      font-size: .88rem;
+    }
+
+    .event-item span {
+      color: var(--muted);
+      font-size: .76rem;
+      line-height: 1.3;
+    }
+
+    .tracking-table-wrap {
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin-top: 10px;
+    }
+
+    .tracking-table-wrap table {
+      margin: 0;
+    }
+
+    .range-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 520px) {
+      .range-actions {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .range-summary {
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--app-bg) 70%, transparent);
+      border-radius: 14px;
+      padding: 11px;
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      max-height: 190px;
+      overflow: auto;
+    }
+
+
     .measure-readout {
       border: 1px solid var(--line);
       background: color-mix(in srgb, var(--app-bg) 70%, transparent);
@@ -713,13 +842,14 @@
           <div class="field">
             <label for="themePreset">Choose a clean viewing theme</label>
             <select id="themePreset">
-              <option value="diesel-dark">Diesel Dark</option>
+              <option value="diesel-dark">Graphite Diesel</option>
               <option value="shop-light">Shop Light</option>
               <option value="high-contrast">High Contrast</option>
+              <option value="scope-teal">Teal Scope Night</option>
               <option value="blueprint">Blueprint</option>
               <option value="warm-paper">Warm Paper</option>
             </select>
-            <div class="mini">The app colors are handled by preset themes so the only custom color you need to mess with is the graph line color.</div>
+            <div class="mini">Preset themes keep the app readable and original. The only color you customize manually is each graph line.</div>
           </div>
         </section>
 
@@ -769,7 +899,27 @@
         </section>
 
         <section class="card">
-          <h2>6. Report Notes</h2>
+          <h2>6. Event Tools</h2>
+
+          <div class="event-panel">
+            <button id="detectEventsBtn" class="secondary" disabled>Detect Common Events</button>
+            <div class="mini">Looks for simple OBD patterns like RPM dips, voltage sag, high fuel trim, roughness index spikes, event flags, and increasing misfire counters.</div>
+
+            <div class="event-list" id="eventList">
+              <div class="mini">No events detected yet.</div>
+            </div>
+
+            <div class="range-actions">
+              <button id="zoomToRulersBtn" class="secondary" disabled>Zoom to X Rulers</button>
+              <button id="summarizeRangeBtn" class="secondary" disabled>Summarize Ruler Range</button>
+            </div>
+
+            <div class="range-summary" id="rangeSummary">Use the X-A and X-B rulers to define a time/window range.</div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>7. Report Notes</h2>
 
           <div class="row">
             <div class="field">
@@ -839,11 +989,40 @@
             </div>
           </div>
 
+          <div class="workstation-toolbar screen-only">
+            <div class="toolbar-group">
+              <span class="toolbar-chip"><strong>Drag empty graph</strong> to zoom</span>
+              <span class="toolbar-chip"><strong>Drag colored ruler tabs</strong> to measure</span>
+              <span class="toolbar-chip"><strong>Shift + drag</strong> pans when zoomed</span>
+            </div>
+            <div class="toolbar-group">
+              <label class="small-toggle"><input id="showRulerBubbles" type="checkbox" checked /> Value bubbles</label>
+              <label class="small-toggle"><input id="showTrackingTable" type="checkbox" checked /> Tracking table</label>
+            </div>
+          </div>
+
           <div class="chart-shell">
             <canvas id="chart"></canvas>
           </div>
 
           <div class="outside-legend screen-only" id="outsideLegend"></div>
+
+          <div class="tracking-table-wrap screen-only" id="trackingTableWrap">
+            <table id="trackingTable">
+              <thead>
+                <tr>
+                  <th>Line</th>
+                  <th>At X-A</th>
+                  <th>At X-B</th>
+                  <th>Δ</th>
+                  <th>% Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td colspan="5">Turn on rulers and add graph lines.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section class="card">
@@ -892,6 +1071,8 @@
     let lastRenderPoints = [];
     let graphBounds = null;
     let zoomRange = null;
+    let zoomHistory = [];
+    let detectedEvents = [];
     let isDraggingZoom = false;
     let dragStart = null;
     let dragEnd = null;
@@ -923,6 +1104,10 @@
       seriesList: document.getElementById("seriesList"),
       chart: document.getElementById("chart"),
       outsideLegend: document.getElementById("outsideLegend"),
+      showRulerBubbles: document.getElementById("showRulerBubbles"),
+      showTrackingTable: document.getElementById("showTrackingTable"),
+      trackingTableWrap: document.getElementById("trackingTableWrap"),
+      trackingTable: document.getElementById("trackingTable"),
       chartTitle: document.getElementById("chartTitle"),
       chartSubtitle: document.getElementById("chartSubtitle"),
       graphStatus: document.getElementById("graphStatus"),
@@ -936,6 +1121,11 @@
       measureMode: document.getElementById("measureMode"),
       clearMeasureBtn: document.getElementById("clearMeasureBtn"),
       measureReadout: document.getElementById("measureReadout"),
+      detectEventsBtn: document.getElementById("detectEventsBtn"),
+      eventList: document.getElementById("eventList"),
+      zoomToRulersBtn: document.getElementById("zoomToRulersBtn"),
+      summarizeRangeBtn: document.getElementById("summarizeRangeBtn"),
+      rangeSummary: document.getElementById("rangeSummary"),
       noteMode: document.getElementById("noteMode"),
       showNotes: document.getElementById("showNotes"),
       notesList: document.getElementById("notesList"),
@@ -983,6 +1173,11 @@
       }
     });
     els.clearMeasureBtn.addEventListener("click", clearMeasurement);
+    els.showRulerBubbles.addEventListener("change", drawGraph);
+    els.showTrackingTable.addEventListener("change", renderTrackingTable);
+    els.detectEventsBtn.addEventListener("click", detectCommonEvents);
+    els.zoomToRulersBtn.addEventListener("click", zoomToRulerRange);
+    els.summarizeRangeBtn.addEventListener("click", summarizeRulerRange);
     els.printBtn.addEventListener("click", () => {
       els.printMeta.innerHTML = buildPrintMeta();
       window.print();
@@ -1029,7 +1224,9 @@
           dragStart = null;
           dragEnd = null;
           resetRulerState();
+          detectedEvents = [];
           renderMeasurement();
+          renderEventList();
 
           populateDropdowns();
           renderPreview();
@@ -1100,7 +1297,10 @@
         els.addLineBtn,
         els.drawBtn,
         els.resetZoomBtn,
-        els.clearLinesBtn
+        els.clearLinesBtn,
+        els.detectEventsBtn,
+        els.zoomToRulersBtn,
+        els.summarizeRangeBtn
       ].forEach(el => el.disabled = false);
     }
 
@@ -1190,7 +1390,9 @@
       dragStart = null;
       dragEnd = null;
       resetRulerState();
+      detectedEvents = [];
       renderMeasurement();
+      renderEventList();
       renderSeriesList();
       renderNotesList();
       drawGraph();
@@ -1198,9 +1400,40 @@
 
     function resetZoom() {
       zoomRange = null;
+      zoomHistory = [];
       isDraggingZoom = false;
       dragStart = null;
       dragEnd = null;
+      drawGraph();
+    }
+
+    function pushZoomRange(range) {
+      if (zoomRange) {
+        zoomHistory.push({ ...zoomRange });
+      }
+      zoomRange = range;
+    }
+
+    function zoomToRulerRange() {
+      if (!graphBounds) return;
+
+      ensureRulersInitialized();
+
+      const minX = Math.min(rulerCursors.vA.value, rulerCursors.vB.value);
+      const maxX = Math.max(rulerCursors.vA.value, rulerCursors.vB.value);
+
+      if (Math.abs(maxX - minX) < 0.001) {
+        setGraphStatus("Move X-A and X-B apart before zooming to rulers.", "warn");
+        return;
+      }
+
+      pushZoomRange({
+        minX,
+        maxX,
+        minY: graphBounds.minY,
+        maxY: graphBounds.maxY
+      });
+
       drawGraph();
     }
 
@@ -1346,6 +1579,7 @@
         updateMainStats(0, 0, xCol);
         renderStatsTable([]);
         renderOutsideLegend([]);
+        renderTrackingTable();
         setGraphStatus(parsedData.length ? "CSV loaded. Add a data line." : "Ready for CSV upload.", parsedData.length ? "warn" : "");
         return;
       }
@@ -1360,6 +1594,7 @@
         setGraphStatus("Not enough numeric data found for the active line(s).", "bad");
         renderStatsTable([]);
         renderOutsideLegend([]);
+        renderTrackingTable();
         updateZoomStatus();
         return;
       }
@@ -1457,6 +1692,7 @@
       updateTitles(lineSeries, xCol);
       updateZoomStatus();
       renderMeasurement();
+      renderTrackingTable();
 
       if (!zoomRange) {
         setGraphStatus("Graph drawn with " + lineSeries.length + " active line(s).", "good");
@@ -1677,7 +1913,7 @@
       if (!isInsidePlot(point.x, point.y)) return;
 
       isDraggingZoom = true;
-      dragStart = point;
+      dragStart = { ...point, shiftKey: event.shiftKey };
       dragEnd = point;
     }
 
@@ -1723,6 +1959,14 @@
 
       isDraggingZoom = false;
 
+      if (dragStart.shiftKey && zoomRange) {
+        panZoomFromDrag(dragStart, dragEnd);
+        dragStart = null;
+        dragEnd = null;
+        drawGraph();
+        return;
+      }
+
       if (wasSmallClick) {
         const clickPoint = dragEnd;
         dragStart = null;
@@ -1754,7 +1998,7 @@
         return;
       }
 
-      zoomRange = range;
+      pushZoomRange(range);
       drawGraph();
     }
 
@@ -1964,7 +2208,9 @@
       ctx.stroke();
 
       ctx.setLineDash([]);
-      drawRulerBubble(ctx, x + 6, top + 9, label + " " + formatNumber(xValue), color, "left");
+      if (!els.showRulerBubbles || els.showRulerBubbles.checked) {
+        drawRulerBubble(ctx, x + 6, top + 9, label + " " + formatNumber(xValue), color, "left");
+      }
       drawVerticalHandle(ctx, x, top, color, label);
 
       ctx.restore();
@@ -1987,7 +2233,9 @@
       ctx.stroke();
 
       ctx.setLineDash([]);
-      drawRulerBubble(ctx, left + 8, y - 24, label + " " + formatNumber(yValue), color, "left");
+      if (!els.showRulerBubbles || els.showRulerBubbles.checked) {
+        drawRulerBubble(ctx, left + 8, y - 24, label + " " + formatNumber(yValue), color, "left");
+      }
       drawHorizontalHandle(ctx, left, y, color, label);
 
       ctx.restore();
@@ -2261,6 +2509,23 @@
       return x >= left && x <= right && y >= top && y <= bottom;
     }
 
+    function panZoomFromDrag(start, end) {
+      if (!graphBounds || !zoomRange) return;
+
+      const dxPixels = end.x - start.x;
+      const dyPixels = end.y - start.y;
+
+      const dxData = -(dxPixels / graphBounds.chartW) * (graphBounds.maxX - graphBounds.minX);
+      const dyData = (dyPixels / graphBounds.chartH) * (graphBounds.maxY - graphBounds.minY);
+
+      zoomRange = {
+        minX: zoomRange.minX + dxData,
+        maxX: zoomRange.maxX + dxData,
+        minY: zoomRange.minY + dyData,
+        maxY: zoomRange.maxY + dyData
+      };
+    }
+
     function canvasBoxToDataRange(start, end) {
       if (!graphBounds) return null;
 
@@ -2434,16 +2699,16 @@
 
     const themes = {
       "diesel-dark": {
-        appBg: "#0f1412",
-        panelBg: "#151d19",
-        panelBg2: "#1d2822",
-        chartBg: "#0b100d",
-        text: "#eef5ef",
-        muted: "rgba(238,245,239,.70)",
-        line: "rgba(238,245,239,.18)",
-        grid: "rgba(255,255,255,.14)",
-        accent: "#68d391",
-        accent2: "#9ae6b4"
+        appBg: "#0b1110",
+        panelBg: "#111b18",
+        panelBg2: "#17241f",
+        chartBg: "#060b0a",
+        text: "#eefaf3",
+        muted: "rgba(238,250,243,.70)",
+        line: "rgba(127,255,208,.16)",
+        grid: "rgba(127,255,208,.14)",
+        accent: "#46d7a3",
+        accent2: "#7fffd0"
       },
       "shop-light": {
         appBg: "#f3f1eb",
@@ -2468,6 +2733,18 @@
         grid: "rgba(255,255,255,.22)",
         accent: "#00e676",
         accent2: "#69f0ae"
+      },
+      "scope-teal": {
+        appBg: "#081113",
+        panelBg: "#101b1e",
+        panelBg2: "#16272a",
+        chartBg: "#030708",
+        text: "#e8fffb",
+        muted: "rgba(232,255,251,.70)",
+        line: "rgba(125,255,225,.18)",
+        grid: "rgba(125,255,225,.16)",
+        accent: "#35d8bd",
+        accent2: "#8df7e5"
       },
       "blueprint": {
         appBg: "#071426",
@@ -2511,6 +2788,271 @@
       root.style.setProperty("--accent-2", selectedTheme.accent2);
     }
 
+    function renderTrackingTable() {
+      if (!els.trackingTable || !els.trackingTableWrap) return;
+
+      els.trackingTableWrap.style.display = els.showTrackingTable && els.showTrackingTable.checked ? "" : "none";
+
+      const tbody = els.trackingTable.querySelector("tbody");
+      tbody.innerHTML = "";
+
+      if (!els.showTrackingTable || !els.showTrackingTable.checked) return;
+
+      const visibleLines = graphLines.filter(line => line.visible);
+      if (!parsedData.length || !visibleLines.length || !rulerCursors.initialized) {
+        tbody.innerHTML = '<tr><td colspan="5">Turn on rulers and add graph lines.</td></tr>';
+        return;
+      }
+
+      const xCol = els.xColumn.value || "__rowNumber";
+      const xA = rulerCursors.vA.value;
+      const xB = rulerCursors.vB.value;
+
+      visibleLines.forEach(line => {
+        const series = getSeries(xCol, line.column);
+        const a = interpolateSeriesValue(series, xA);
+        const b = interpolateSeriesValue(series, xB);
+        const delta = Number.isFinite(a) && Number.isFinite(b) ? b - a : NaN;
+        const percent = Number.isFinite(delta) && a !== 0 ? (delta / Math.abs(a)) * 100 : NaN;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          '<td><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:' + line.color + ';margin-right:7px;"></span>' + escapeHtml(line.column) + '</td>' +
+          '<td>' + formatNumber(a) + '</td>' +
+          '<td>' + formatNumber(b) + '</td>' +
+          '<td>' + formatSigned(delta) + '</td>' +
+          '<td>' + formatSigned(percent) + '%</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function interpolateSeriesValue(series, targetX) {
+      if (!series || !series.length) return NaN;
+
+      let closest = series[0];
+      let closestDistance = Math.abs(series[0].x - targetX);
+
+      for (let i = 1; i < series.length; i++) {
+        const distance = Math.abs(series[i].x - targetX);
+        if (distance < closestDistance) {
+          closest = series[i];
+          closestDistance = distance;
+        }
+      }
+
+      return closest.y;
+    }
+
+    function detectCommonEvents() {
+      detectedEvents = [];
+
+      if (!parsedData.length) {
+        renderEventList();
+        return;
+      }
+
+      detectThresholdEvent("Engine RPM", value => value < 600, "Low RPM / possible stumble", "RPM dropped below 600.");
+      detectThresholdEvent("Control Module Voltage (V)", value => value < 13.2, "Low charging voltage", "Control/module voltage fell below 13.2 V.");
+      detectThresholdEvent("STFT Bank 1 (%)", value => value > 15, "High positive fuel trim", "Short-term fuel trim exceeded +15%.");
+      detectThresholdEvent("Idle Roughness Index", value => value > 25, "High idle roughness", "Idle roughness index exceeded 25.");
+      detectThresholdEvent("Event Flag", value => value >= 1, "Marked event flag", "CSV event flag was active.");
+
+      detectCounterIncrease("Misfire Count Cyl 1", "Cylinder 1 misfire count increase");
+      detectCounterIncrease("Misfire Count Cyl 2", "Cylinder 2 misfire count increase");
+      detectCounterIncrease("Misfire Count Cyl 3", "Cylinder 3 misfire count increase");
+      detectCounterIncrease("Misfire Count Cyl 4", "Cylinder 4 misfire count increase");
+
+      detectedEvents.sort((a, b) => a.startX - b.startX);
+      renderEventList();
+
+      if (detectedEvents.length) {
+        setGraphStatus("Detected " + detectedEvents.length + " possible event(s).", "good");
+      } else {
+        setGraphStatus("No common event patterns detected with current rules.", "warn");
+      }
+    }
+
+    function detectThresholdEvent(column, predicate, title, detail) {
+      if (!headers.includes(column)) return;
+
+      const xCol = els.xColumn.value || "__rowNumber";
+      let active = false;
+      let startIndex = 0;
+      let maxValue = -Infinity;
+      let minValue = Infinity;
+
+      for (let i = 0; i < parsedData.length; i++) {
+        const value = toNumber(parsedData[i][column]);
+        const hit = value !== null && predicate(value);
+
+        if (hit && !active) {
+          active = true;
+          startIndex = i;
+          maxValue = value;
+          minValue = value;
+        }
+
+        if (hit && active) {
+          maxValue = Math.max(maxValue, value);
+          minValue = Math.min(minValue, value);
+        }
+
+        if ((!hit || i === parsedData.length - 1) && active) {
+          const endIndex = hit && i === parsedData.length - 1 ? i : i - 1;
+          const duration = endIndex - startIndex + 1;
+
+          if (duration >= 3) {
+            const startX = getRowXValue(parsedData[startIndex], xCol, startIndex);
+            const endX = getRowXValue(parsedData[endIndex], xCol, endIndex);
+
+            detectedEvents.push({
+              title,
+              detail,
+              column,
+              startX,
+              endX,
+              duration,
+              minValue,
+              maxValue
+            });
+          }
+
+          active = false;
+        }
+      }
+    }
+
+    function detectCounterIncrease(column, title) {
+      if (!headers.includes(column) || !parsedData.length) return;
+
+      const xCol = els.xColumn.value || "__rowNumber";
+      const first = toNumber(parsedData[0][column]);
+      const last = toNumber(parsedData[parsedData.length - 1][column]);
+
+      if (first === null || last === null || last <= first) return;
+
+      let startIndex = 0;
+      let endIndex = parsedData.length - 1;
+
+      for (let i = 1; i < parsedData.length; i++) {
+        const prev = toNumber(parsedData[i - 1][column]);
+        const current = toNumber(parsedData[i][column]);
+        if (prev !== null && current !== null && current > prev) {
+          startIndex = i - 1;
+          break;
+        }
+      }
+
+      for (let i = parsedData.length - 1; i > 0; i--) {
+        const prev = toNumber(parsedData[i - 1][column]);
+        const current = toNumber(parsedData[i][column]);
+        if (prev !== null && current !== null && current > prev) {
+          endIndex = i;
+          break;
+        }
+      }
+
+      detectedEvents.push({
+        title,
+        detail: column + " increased by " + formatNumber(last - first) + " count(s).",
+        column,
+        startX: getRowXValue(parsedData[startIndex], xCol, startIndex),
+        endX: getRowXValue(parsedData[endIndex], xCol, endIndex),
+        duration: endIndex - startIndex + 1,
+        minValue: first,
+        maxValue: last
+      });
+    }
+
+    function getRowXValue(row, xCol, index) {
+      if (xCol === "__rowNumber") return index + 1;
+
+      const raw = row[xCol];
+      let value = toNumber(raw);
+
+      if (xCol !== "__rowNumber" && isProbablyTime(String(raw))) {
+        value = index + 1;
+      }
+
+      return value === null ? index + 1 : value;
+    }
+
+    function renderEventList() {
+      if (!els.eventList) return;
+
+      els.eventList.innerHTML = "";
+
+      if (!detectedEvents.length) {
+        els.eventList.innerHTML = '<div class="mini">No events detected yet.</div>';
+        return;
+      }
+
+      detectedEvents.slice(0, 25).forEach(event => {
+        const item = document.createElement("div");
+        item.className = "event-item";
+        item.innerHTML =
+          '<strong>' + escapeHtml(event.title) + '</strong>' +
+          '<span>' + escapeHtml(event.detail) + '</span>' +
+          '<span>X ' + formatNumber(event.startX) + ' → ' + formatNumber(event.endX) +
+          ' · samples/window: ' + event.duration +
+          ' · min/max: ' + formatNumber(event.minValue) + ' / ' + formatNumber(event.maxValue) + '</span>';
+
+        item.addEventListener("click", () => {
+          if (!graphBounds) return;
+
+          const xPad = Math.max(1, (event.endX - event.startX) * 0.15);
+          pushZoomRange({
+            minX: event.startX - xPad,
+            maxX: event.endX + xPad,
+            minY: graphBounds.minY,
+            maxY: graphBounds.maxY
+          });
+
+          if (els.measureMode) {
+            els.measureMode.checked = true;
+            ensureRulersInitialized();
+            rulerCursors.vA.value = event.startX;
+            rulerCursors.vB.value = event.endX;
+          }
+
+          drawGraph();
+        });
+
+        els.eventList.appendChild(item);
+      });
+    }
+
+    function summarizeRulerRange() {
+      if (!parsedData.length || !graphBounds) return;
+
+      ensureRulersInitialized();
+
+      const xCol = els.xColumn.value || "__rowNumber";
+      const minX = Math.min(rulerCursors.vA.value, rulerCursors.vB.value);
+      const maxX = Math.max(rulerCursors.vA.value, rulerCursors.vB.value);
+      const visibleLines = graphLines.filter(line => line.visible);
+
+      const lines = [];
+      lines.push("Ruler Range Summary");
+      lines.push("X range: " + formatNumber(minX) + " to " + formatNumber(maxX));
+      lines.push("");
+
+      visibleLines.forEach(line => {
+        const series = getSeries(xCol, line.column).filter(point => point.x >= minX && point.x <= maxX);
+        if (!series.length) return;
+
+        const stats = calcStats(series.map(point => point.y));
+        lines.push(
+          line.column + ": samples " + stats.count +
+          " · min " + formatNumber(stats.min) +
+          " · avg " + formatNumber(stats.avg) +
+          " · max " + formatNumber(stats.max)
+        );
+      });
+
+      els.rangeSummary.textContent = lines.join("\\n");
+    }
+
     function buildPrintMeta() {
       const parts = [];
 
@@ -2537,6 +3079,16 @@
         );
       }
 
+      if (els.rangeSummary && els.rangeSummary.textContent && !els.rangeSummary.textContent.startsWith("Use the X-A")) {
+        parts.push("<strong>Ruler Range Summary:</strong><br>" + escapeHtml(els.rangeSummary.textContent).replaceAll("\n", "<br>"));
+      }
+
+      if (detectedEvents.length) {
+        parts.push("<strong>Detected Events:</strong><br>" + detectedEvents.slice(0, 10).map((event, index) => {
+          return (index + 1) + ". " + escapeHtml(event.title) + " — X " + formatNumber(event.startX) + " to " + formatNumber(event.endX);
+        }).join("<br>"));
+      }
+
       if (graphNotes.length) {
         parts.push("<strong>Graph Notes:</strong><br>" + graphNotes.map((note, index) => {
           return (index + 1) + ". " + escapeHtml(note.column) + " @ " + escapeHtml(note.xLabel) + " = " + formatNumber(note.yValue) + " — " + escapeHtml(note.text);
@@ -2551,6 +3103,12 @@
       if (Math.abs(number) >= 1000) return number.toFixed(0);
       if (Math.abs(number) >= 100) return number.toFixed(1);
       return number.toFixed(2);
+    }
+
+    function formatSigned(number) {
+      if (!Number.isFinite(number)) return "—";
+      const formatted = formatNumber(number);
+      return number > 0 ? "+" + formatted : formatted;
     }
 
     function shorten(text, max) {
@@ -2657,6 +3215,8 @@
     renderSeriesList();
     renderNotesList();
     renderMeasurement();
+    renderEventList();
+    renderTrackingTable();
     updateZoomStatus();
     drawPlaceholder();
   </script>
