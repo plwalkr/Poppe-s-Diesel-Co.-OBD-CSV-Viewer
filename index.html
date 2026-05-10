@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer REV 016</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer REV 017</title>
   <style>
     :root {
       --app-bg: #e9eef2;
@@ -1260,7 +1260,7 @@
       }
     }
   
-    /* REV 016: original light lab-scope presentation theme */
+    /* REV 017: original light lab-scope presentation theme */
     body.lab-scope-theme {
       background: linear-gradient(180deg, #f3f7fa, #e9eef2);
     }
@@ -1741,7 +1741,7 @@
     }
 
   
-    /* REV 016 Diagnostics: scrolling + activity feedback */
+    /* REV 017 Diagnostics: scrolling + activity feedback */
     .diagnostics-panel {
       height: min(880px, calc(100vh - 24px));
       min-height: 560px;
@@ -1962,7 +1962,7 @@
     }
 
   
-    /* REV 016: layout freedom, no clipped button text, menu-driven panels */
+    /* REV 017: layout freedom, no clipped button text, menu-driven panels */
     button,
     .header-action,
     .scope-icon-btn,
@@ -2185,7 +2185,7 @@
     }
 
   
-    /* REV 016: cleaner graph layout + movable/minimizable ruler dock */
+    /* REV 017: cleaner graph layout + movable/minimizable ruler dock */
     .card.graph-card {
       grid-template-rows: auto auto auto auto auto auto;
       align-content: start;
@@ -2329,6 +2329,492 @@
       align-content: center;
     }
 
+  
+    /* REV 017: modern workstation look */
+    :root {
+      --header-h: 68px;
+      --rail-w: 62px;
+      --footer-h: 46px;
+      --sidebar-w: 380px;
+    }
+
+    body {
+      background: linear-gradient(180deg, #f6f8fb, #edf2f7);
+      color: #173042;
+    }
+
+    .screen-only { box-sizing: border-box; }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 120;
+      background: rgba(248,250,252,.92);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(64,132,168,.16);
+      box-shadow: 0 8px 18px rgba(44,80,100,.06);
+    }
+
+    .header-inner {
+      width: calc(100vw - 28px);
+      max-width: none;
+      padding: 10px 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-badge {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, #4f9bf7, #256fd1);
+      color: #fff;
+      font-size: 1.15rem;
+      font-weight: 900;
+      box-shadow: 0 10px 20px rgba(37,111,209,.18);
+    }
+
+    h1 {
+      font-size: 1.12rem;
+      color: #173042;
+      letter-spacing: -.02em;
+      margin: 0;
+    }
+
+    .subtitle {
+      margin-left: 52px;
+      margin-top: 4px;
+      color: rgba(23,48,66,.62);
+      font-size: .82rem;
+    }
+
+    .header-action {
+      min-width: 140px;
+      min-height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #ffffff, #edf3f8);
+      border: 1px solid rgba(64,132,168,.18);
+      color: #1f3552;
+      font-weight: 800;
+      box-shadow: 0 3px 10px rgba(44,80,100,.05);
+    }
+
+    .header-action.icon-only {
+      min-width: 42px;
+      width: 42px;
+      padding: 0;
+    }
+
+    .version {
+      background: #eef5fb;
+      border: 1px solid rgba(64,132,168,.18);
+      color: #28496d;
+      border-radius: 12px;
+      min-height: 42px;
+      display: inline-grid;
+      align-items: center;
+      padding: 0 16px;
+      font-weight: 800;
+    }
+
+    .app-rail {
+      position: fixed;
+      top: calc(var(--header-h) + 10px);
+      left: 8px;
+      bottom: calc(var(--footer-h) + 12px);
+      width: var(--rail-w);
+      border-radius: 18px;
+      background: linear-gradient(180deg, #fbfdff, #eef4f9);
+      border: 1px solid rgba(64,132,168,.16);
+      box-shadow: 0 16px 35px rgba(44,80,100,.08);
+      display: grid;
+      align-content: start;
+      gap: 10px;
+      padding: 10px 8px;
+      z-index: 90;
+    }
+
+    .rail-btn {
+      width: 44px;
+      min-width: 44px;
+      height: 44px;
+      min-height: 44px;
+      border-radius: 12px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      background: #fff;
+      border: 1px solid rgba(64,132,168,.15);
+      color: #294769;
+      font-size: 1rem;
+      box-shadow: 0 4px 10px rgba(44,80,100,.05);
+    }
+
+    .rail-btn.active,
+    .rail-btn:hover {
+      background: linear-gradient(180deg, #f0f7ff, #dbeaf8);
+      border-color: rgba(64,132,168,.25);
+    }
+
+    main {
+      width: calc(100vw - var(--rail-w) - 26px);
+      max-width: none;
+      margin-left: calc(var(--rail-w) + 18px);
+      padding: 12px 0 calc(var(--footer-h) + 14px);
+    }
+
+    .layout {
+      grid-template-columns: minmax(320px, var(--sidebar-w)) minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .card {
+      background: linear-gradient(180deg, #fbfdff, #f2f7fb);
+      border: 1px solid rgba(64,132,168,.14);
+      border-radius: 18px;
+      box-shadow: 0 12px 28px rgba(44,80,100,.06);
+    }
+
+    .side {
+      gap: 12px;
+    }
+
+    .side > .card {
+      padding: 14px;
+    }
+
+    .side h2 {
+      color: #22466d;
+      font-size: 1.02rem;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+      margin-bottom: 12px;
+    }
+
+    .graph-card {
+      padding: 12px;
+      border-radius: 18px;
+      overflow: visible;
+      background: linear-gradient(180deg, #ffffff, #f5f9fc);
+    }
+
+    .graph-top {
+      display: none;
+    }
+
+    .stats-grid {
+      display: none;
+    }
+
+    .scope-ribbon, .workstation-toolbar {
+      display: none !important;
+    }
+
+    .chart-command-bar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid rgba(64,132,168,.15);
+      background: linear-gradient(180deg, #ffffff, #f6f9fc);
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 14px rgba(44,80,100,.04);
+    }
+
+    .chart-command-left,
+    .chart-command-center,
+    .chart-command-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .command-live-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: #31c46a;
+      box-shadow: 0 0 0 4px rgba(49,196,106,.14);
+      flex: 0 0 auto;
+    }
+
+    .command-line-title {
+      font-size: 1rem;
+      font-weight: 900;
+      color: #28496d;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chart-scale-select,
+    .chart-tool-btn {
+      min-height: 42px;
+      height: 42px;
+      border-radius: 12px;
+      border: 1px solid rgba(64,132,168,.18);
+      background: linear-gradient(180deg, #ffffff, #eef5fb);
+      color: #28496d;
+      font-weight: 800;
+      box-shadow: 0 3px 10px rgba(44,80,100,.04);
+    }
+
+    .chart-scale-select {
+      min-width: 165px;
+      padding: 0 12px;
+    }
+
+    .chart-tool-btn {
+      min-width: 42px;
+      width: 42px;
+      padding: 0 10px;
+      display: grid;
+      place-items: center;
+    }
+
+    .scope-plot-row {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+    }
+
+    .scope-channel-rail {
+      display: none !important;
+    }
+
+    .chart-shell {
+      min-height: 520px;
+      border-radius: 16px;
+      border: 1px solid rgba(64,132,168,.16);
+      background: #fff;
+      padding: 8px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.85);
+    }
+
+    canvas {
+      background: #fff;
+      border-radius: 12px;
+    }
+
+    .floating-rulers-panel {
+      border-radius: 14px;
+      background: rgba(248,251,255,.96);
+      border: 1px solid rgba(64,132,168,.18);
+      box-shadow: 0 14px 30px rgba(44,80,100,.12);
+    }
+
+    .floating-rulers-title {
+      background: linear-gradient(180deg, #f7fbff, #e2edf8);
+      border-bottom: 1px solid rgba(64,132,168,.14);
+      color: #28496d;
+    }
+
+    .scope-bottom-dock {
+      grid-template-columns: minmax(250px, .8fr) minmax(380px, 1.4fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .scope-dock-panel {
+      border-radius: 16px;
+      background: linear-gradient(180deg, #fbfdff, #f2f7fb);
+      border: 1px solid rgba(64,132,168,.14);
+      overflow: hidden;
+    }
+
+    .scope-dock-title {
+      padding: 10px 14px;
+      background: linear-gradient(180deg, #eef6fd, #deecf9);
+      color: #1e4b79;
+      font-size: .9rem;
+      font-weight: 900;
+      border-bottom: 1px solid rgba(64,132,168,.14);
+    }
+
+    .outside-legend-item {
+      background: #fff;
+      border: 1px solid rgba(64,132,168,.12);
+      border-radius: 10px;
+    }
+
+    .tracking-table-wrap,
+    .table-wrap {
+      background: #fff;
+    }
+
+    .tracking-table-wrap th,
+    .table-wrap th,
+    table th {
+      background: #edf5fc;
+      color: #25486c;
+    }
+
+    .table-wrap,
+    .tracking-table-wrap {
+      border-top: 0;
+    }
+
+    .field label, .mini, p, .status, .pill, .scope-channel-empty, .scope-channel-mini, .note-item, .event-item, .range-summary {
+      color: rgba(23,48,66,.76);
+    }
+
+    input, select, textarea {
+      border-radius: 12px;
+      border: 1px solid rgba(64,132,168,.18);
+      background: #fff;
+      color: #173042;
+    }
+
+    button:not(.header-action):not(.chart-tool-btn):not(.rail-btn):not(.scope-icon-btn) {
+      border-radius: 12px;
+    }
+
+    .button-row button,
+    #addLineBtn, #drawBtn, #resetZoomBtn, #clearLinesBtn, #clearMeasureBtn, #detectEventsBtn, #zoomToRulersBtn, #summarizeRangeBtn,
+    #scopeResetZoomBtn, #scopeDetectBtn, #scopePrintBtn {
+      min-height: 42px;
+      background: linear-gradient(180deg, #ffffff, #eef5fb);
+      color: #23496f;
+      border: 1px solid rgba(64,132,168,.18);
+      font-weight: 800;
+    }
+
+    .status-footer {
+      position: fixed;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      height: var(--footer-h);
+      padding: 0 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(248,250,252,.94);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(64,132,168,.16);
+      border-radius: 16px;
+      box-shadow: 0 16px 30px rgba(44,80,100,.08);
+      z-index: 95;
+      color: #294769;
+      font-size: .9rem;
+    }
+
+    .footer-left,
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      min-width: 0;
+      white-space: nowrap;
+    }
+
+    .footer-live-pill {
+      color: #20a34b;
+      font-weight: 900;
+    }
+
+    .layout-menu {
+      top: 80px;
+      right: 18px;
+      border-radius: 16px;
+      background: rgba(249,252,255,.97);
+    }
+
+    body.workstation-mode header {
+      position: fixed;
+      height: var(--header-h);
+    }
+
+    body.workstation-mode .header-inner {
+      width: calc(100vw - 28px);
+      padding: 11px 0;
+    }
+
+    body.workstation-mode main {
+      position: fixed;
+      top: var(--header-h);
+      bottom: calc(var(--footer-h) + 8px);
+      left: calc(var(--rail-w) + 18px);
+      right: 0;
+      width: auto;
+      margin-left: 0;
+      padding: 12px 12px 0 0;
+      overflow: hidden;
+    }
+
+    body.workstation-mode .layout {
+      height: 100%;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    body.workstation-mode .side {
+      height: 100%;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    body.workstation-mode .graph-card {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    body.workstation-mode .chart-shell {
+      min-height: 0;
+      height: 100%;
+    }
+
+    body.workstation-mode .scope-bottom-dock {
+      margin-top: 0;
+      grid-template-columns: minmax(240px, .8fr) minmax(340px, 1.25fr);
+      gap: 10px;
+    }
+
+    body.workstation-mode .status-footer {
+      left: 8px;
+      right: 8px;
+    }
+
+    @media (max-width: 1280px) {
+      :root { --sidebar-w: 330px; }
+      .footer-left, .footer-right { gap: 12px; font-size: .82rem; }
+    }
+
+    @media (max-width: 1080px) {
+      .app-rail { display: none; }
+      main {
+        width: calc(100vw - 16px);
+        margin-left: 0;
+      }
+      .layout { grid-template-columns: 1fr; }
+      .chart-command-bar { grid-template-columns: 1fr; }
+      .scope-bottom-dock { grid-template-columns: 1fr; }
+      .status-footer { flex-direction: column; height: auto; gap: 6px; padding: 10px 14px; }
+      body.workstation-mode main {
+        left: 0;
+        padding: 10px;
+      }
+      body.workstation-mode .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
   </style>
 </head>
 
@@ -2336,23 +2822,32 @@
   <header>
     <div class="header-inner">
       <div>
-        <h1>PoppeScope OBD Workstation</h1>
+        <div class="brand-row"><div class="brand-badge">〰</div><h1>PoppeScope OBD Workstation</h1></div>
         <div class="subtitle">OBD CSV diagnostics · light lab-scope workspace · draggable rulers · tracking measurements · event tools.</div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <button id="workspaceBtn" class="header-action" type="button">Full Workspace</button>
         <button id="layoutMenuBtn" class="header-action" type="button">Layout</button>
         <button id="diagnosticsBtn" class="header-action" type="button">Diagnostics</button>
-        <div class="version">REV 016 · ruler dock + layout cleanup</div>
+        <button id="settingsBtn" class="header-action icon-only" type="button" title="Settings">⚙</button>
+        <div class="version">v1.4.2</div>
       </div>
     </div>
   </header>
+
+  <aside class="app-rail screen-only">
+    <button class="rail-btn active" id="railGraphBtn" type="button" title="Graph">〰</button>
+    <button class="rail-btn" id="railDataBtn" type="button" title="Data">▦</button>
+    <button class="rail-btn" id="railSaveBtn" type="button" title="Report">💾</button>
+    <button class="rail-btn" id="railLayoutBtn" type="button" title="Layout">◫</button>
+    <button class="rail-btn" id="railInfoBtn" type="button" title="Diagnostics">ⓘ</button>
+  </aside>
 
   <main>
     <div class="layout">
       <aside class="stack side">
         <section class="card">
-          <h2>1. Upload OBD CSV</h2>
+          <h2>Import Data</h2>
 
           <div class="field">
             <label for="csvFile">CSV file from OBDLink / scanner app</label>
@@ -2408,7 +2903,7 @@
         </section>
 
         <section class="card">
-          <h2>3. Theme Preset</h2>
+          <h2>Theme Preset</h2>
 
           <div class="field">
             <label for="themePreset">Choose a clean viewing theme</label>
@@ -2426,7 +2921,7 @@
         </section>
 
         <section class="card">
-          <h2>4. Scope-Style Rulers</h2>
+          <h2>Scope-Style Rulers</h2>
 
           <div class="toggle-row">
             <input id="measureMode" type="checkbox" />
@@ -2447,7 +2942,7 @@
         </section>
 
         <section class="card">
-          <h2>5. Graph Notes</h2>
+          <h2>Graph Notes</h2>
 
           <div class="toggle-row">
             <input id="noteMode" type="checkbox" />
@@ -2533,7 +3028,7 @@
           <div class="graph-top">
             <div class="graph-title-block">
               <h2 id="chartTitle">Graph</h2>
-              <div class="graph-subtitle" id="chartSubtitle">REV 016 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
+              <div class="graph-subtitle" id="chartSubtitle">REV 017 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
             </div>
 
             <div class="screen-only" style="min-width:220px;">
@@ -2558,6 +3053,29 @@
             <div class="stat">
               <div class="k">Notes</div>
               <div class="v" id="notesStat">—</div>
+            </div>
+          </div>
+
+          <div class="chart-command-bar screen-only">
+            <div class="chart-command-left">
+              <span class="command-live-dot"></span>
+              <div class="command-line-title" id="scopePrimaryLineName">No active line</div>
+            </div>
+            <div class="chart-command-center">
+              <select id="chartScalePreset" class="chart-scale-select">
+                <option>Auto (1.0 s/div)</option>
+                <option>Auto (0.5 s/div)</option>
+                <option>Auto (2.0 s/div)</option>
+              </select>
+              <button id="chartScaleMinusBtn" class="chart-tool-btn" type="button" title="Zoom out">−</button>
+              <button id="chartScalePlusBtn" class="chart-tool-btn" type="button" title="Zoom in">+</button>
+            </div>
+            <div class="chart-command-right">
+              <button id="chartZoomBtn" class="chart-tool-btn" type="button" title="Reset Zoom">⌕</button>
+              <button id="chartWorkspaceBtn" class="chart-tool-btn" type="button" title="Full Workspace">⛶</button>
+              <button id="chartPanBtn" class="chart-tool-btn" type="button" title="Focus Graph">✋</button>
+              <button id="chartSnapshotBtn" class="chart-tool-btn" type="button" title="Print Report">📷</button>
+              <button id="chartMenuBtn" class="chart-tool-btn" type="button" title="Layout Menu">⋮</button>
             </div>
           </div>
 
@@ -2766,7 +3284,7 @@
 
       <div class="diagnostics-footer">
         <div id="diagnosticsFooterText">Diagnostics idle.</div>
-        <div><strong>REV 016</strong> · PoppeScope OBD Workstation</div>
+        <div><strong>REV 017</strong> · PoppeScope OBD Workstation</div>
       </div>
     </div>
   </div>
@@ -2775,6 +3293,20 @@
 
   <div class="diagnostics-toast" id="diagnosticsToast">Diagnostics complete.</div>
 
+
+  <footer class="status-footer screen-only">
+    <div class="footer-left">
+      <span class="footer-live-pill" id="footerConnectionStatus">● Live</span>
+      <span id="footerPortStatus">Mode: CSV Viewer</span>
+      <span id="footerProtocolStatus">Protocol: Offline / Local</span>
+      <span id="footerRateStatus">Rate: —</span>
+    </div>
+    <div class="footer-right">
+      <span id="footerBufferStatus">Buffer: 100%</span>
+      <span id="footerTimeStatus">--:--:--</span>
+      <span id="footerDateStatus">-- --- ----</span>
+    </div>
+  </footer>
 
   <div class="layout-menu" id="layoutMenu">
     <h3>Layout Controls</h3>
@@ -2829,6 +3361,28 @@
 
     const els = {
       workspaceBtn: document.getElementById("workspaceBtn"),
+      settingsBtn: document.getElementById("settingsBtn"),
+      railGraphBtn: document.getElementById("railGraphBtn"),
+      railDataBtn: document.getElementById("railDataBtn"),
+      railSaveBtn: document.getElementById("railSaveBtn"),
+      railLayoutBtn: document.getElementById("railLayoutBtn"),
+      railInfoBtn: document.getElementById("railInfoBtn"),
+      chartScalePreset: document.getElementById("chartScalePreset"),
+      chartScaleMinusBtn: document.getElementById("chartScaleMinusBtn"),
+      chartScalePlusBtn: document.getElementById("chartScalePlusBtn"),
+      chartZoomBtn: document.getElementById("chartZoomBtn"),
+      chartWorkspaceBtn: document.getElementById("chartWorkspaceBtn"),
+      chartPanBtn: document.getElementById("chartPanBtn"),
+      chartSnapshotBtn: document.getElementById("chartSnapshotBtn"),
+      chartMenuBtn: document.getElementById("chartMenuBtn"),
+      scopePrimaryLineName: document.getElementById("scopePrimaryLineName"),
+      footerConnectionStatus: document.getElementById("footerConnectionStatus"),
+      footerPortStatus: document.getElementById("footerPortStatus"),
+      footerProtocolStatus: document.getElementById("footerProtocolStatus"),
+      footerRateStatus: document.getElementById("footerRateStatus"),
+      footerBufferStatus: document.getElementById("footerBufferStatus"),
+      footerTimeStatus: document.getElementById("footerTimeStatus"),
+      footerDateStatus: document.getElementById("footerDateStatus"),
       layoutMenuBtn: document.getElementById("layoutMenuBtn"),
       layoutMenu: document.getElementById("layoutMenu"),
       toggleSidePanelBtn: document.getElementById("toggleSidePanelBtn"),
@@ -2918,6 +3472,27 @@
     };
 
     els.workspaceBtn.addEventListener("click", toggleWorkspaceMode);
+    els.chartWorkspaceBtn.addEventListener("click", toggleWorkspaceMode);
+    els.chartZoomBtn.addEventListener("click", resetZoom);
+    els.chartSnapshotBtn.addEventListener("click", () => {
+      els.printMeta.innerHTML = buildPrintMeta();
+      window.print();
+    });
+    els.chartMenuBtn.addEventListener("click", toggleLayoutMenu);
+    els.chartPanBtn.addEventListener("click", () => toggleLayoutClass("focus-graph"));
+    els.railLayoutBtn.addEventListener("click", toggleLayoutMenu);
+    els.railInfoBtn.addEventListener("click", openDiagnosticsPanel);
+    els.railSaveBtn.addEventListener("click", () => {
+      els.printMeta.innerHTML = buildPrintMeta();
+      window.print();
+    });
+    els.railDataBtn.addEventListener("click", () => {
+      document.querySelector(".data-card")?.scrollIntoView({behavior:"smooth", block:"start"});
+    });
+    els.railGraphBtn.addEventListener("click", () => {
+      document.querySelector(".graph-card")?.scrollIntoView({behavior:"smooth", block:"start"});
+    });
+    els.settingsBtn.addEventListener("click", toggleLayoutMenu);
     els.layoutMenuBtn.addEventListener("click", toggleLayoutMenu);
     els.toggleSidePanelBtn.addEventListener("click", () => toggleLayoutClass("hide-side-panel"));
     els.toggleChannelRailBtn.addEventListener("click", () => toggleLayoutClass("hide-channel-rail"));
@@ -3032,6 +3607,16 @@
         const active = document.body.classList.contains(className);
         button.textContent = active ? activeText : inactiveText;
         button.classList.toggle("active", active);
+      });
+    }
+
+    function updateFooterClock() {
+      const now = new Date();
+      if (els.footerTimeStatus) els.footerTimeStatus.textContent = now.toLocaleTimeString();
+      if (els.footerDateStatus) els.footerDateStatus.textContent = now.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
       });
     }
 
@@ -3155,7 +3740,7 @@
       const chartHeight = Math.round(canvasRect.height || 0);
 
       return {
-        rev: "REV 016",
+        rev: "REV 017",
         appName: "PoppeScope OBD Workstation",
         timestamp: new Date().toISOString(),
         localTime: new Date().toLocaleString(),
@@ -3684,6 +4269,8 @@
         });
         els.lineColor.value = defaultPalette[1];
         renderSeriesList();
+    updateFooterClock();
+    setInterval(updateFooterClock, 1000);
       }
     }
 
@@ -5439,6 +6026,9 @@
 
       const visibleLines = graphLines.filter(line => line.visible);
       const xCol = els.xColumn ? els.xColumn.value || "__rowNumber" : "__rowNumber";
+      const primaryLine = visibleLines[0];
+      const samples = parsedData.length;
+      const rateText = samples ? "Samples: " + samples : "Rate: —";
 
       els.scopeRunState.textContent = parsedData.length ? "Ready" : "No Data";
       els.scopeCsvName.textContent = currentFileName || "No CSV";
@@ -5447,6 +6037,22 @@
       els.scopeLineCount.textContent = String(visibleLines.length);
       els.scopeEventCount.textContent = String(detectedEvents.length);
       els.scopeZoomLabel.textContent = zoomRange ? "Active" : "Full";
+
+      if (els.scopePrimaryLineName) {
+        els.scopePrimaryLineName.textContent = primaryLine
+          ? primaryLine.column + " (Line " + (graphLines.indexOf(primaryLine) + 1) + ")"
+          : "No active line";
+      }
+
+      if (els.footerConnectionStatus) {
+        els.footerConnectionStatus.textContent = parsedData.length ? "● Data Live" : "● Waiting";
+        els.footerConnectionStatus.style.color = parsedData.length ? "#20a34b" : "#b7791f";
+      }
+      if (els.footerPortStatus) els.footerPortStatus.textContent = "Mode: CSV Viewer";
+      if (els.footerProtocolStatus) els.footerProtocolStatus.textContent = xCol === "__rowNumber" ? "X Axis: Rows" : "X Axis: " + xCol;
+      if (els.footerRateStatus) els.footerRateStatus.textContent = rateText;
+      if (els.footerBufferStatus) els.footerBufferStatus.textContent = "Buffer: 100%";
+      updateFooterClock();
     }
 
     function renderScopeChannelRail() {
