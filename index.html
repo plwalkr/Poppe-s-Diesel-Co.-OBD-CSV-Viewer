@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer REV 012</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer REV 013</title>
   <style>
     :root {
       --app-bg: #e9eef2;
@@ -1260,7 +1260,7 @@
       }
     }
   
-    /* REV 012: original light lab-scope presentation theme */
+    /* REV 013: original light lab-scope presentation theme */
     body.lab-scope-theme {
       background: linear-gradient(180deg, #f3f7fa, #e9eef2);
     }
@@ -1475,6 +1475,271 @@
       gap: 5px;
     }
 
+  
+    .diagnostics-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(5,12,14,.42);
+      backdrop-filter: blur(6px);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .diagnostics-backdrop.open {
+      display: flex;
+    }
+
+    .diagnostics-panel {
+      width: min(1180px, calc(100vw - 28px));
+      max-height: min(880px, calc(100vh - 28px));
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      background: linear-gradient(180deg, var(--panel-bg), color-mix(in srgb, var(--panel-bg) 84%, black 16%));
+      color: var(--text);
+      border: 1px solid color-mix(in srgb, var(--accent-2) 36%, var(--line));
+      border-radius: 16px;
+      box-shadow: 0 28px 90px rgba(0,0,0,.40);
+      overflow: hidden;
+    }
+
+    body.lab-scope-theme .diagnostics-panel {
+      background: linear-gradient(180deg, #fbfdff, #edf5fa);
+      box-shadow: 0 28px 90px rgba(44,80,100,.25);
+    }
+
+    .diagnostics-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--panel-bg-2) 78%, transparent);
+    }
+
+    .diagnostics-header h2 {
+      margin: 0;
+      font-size: 1.08rem;
+      letter-spacing: -.02em;
+    }
+
+    .diagnostics-header .sub {
+      color: var(--muted);
+      font-size: .78rem;
+      margin-top: 3px;
+    }
+
+    .diagnostics-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .diagnostics-actions button {
+      width: auto;
+      min-width: 105px;
+      border-radius: 10px;
+      padding: 9px 11px;
+      font-size: .82rem;
+    }
+
+    .diagnostics-summary {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 8px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--app-bg) 42%, transparent);
+    }
+
+    .diagnostic-kpi {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: color-mix(in srgb, var(--chart-bg) 62%, transparent);
+      min-height: 68px;
+    }
+
+    .diagnostic-kpi .label {
+      color: var(--muted);
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 6px;
+    }
+
+    .diagnostic-kpi .value {
+      font-size: 1.18rem;
+      font-weight: 900;
+      color: var(--text);
+    }
+
+    .diagnostic-kpi.good .value { color: #1f9d55; }
+    .diagnostic-kpi.warn .value { color: #b7791f; }
+    .diagnostic-kpi.bad .value { color: #c53030; }
+
+    .diagnostics-body {
+      min-height: 0;
+      overflow: auto;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: minmax(260px, .8fr) minmax(420px, 1.2fr);
+      gap: 12px;
+    }
+
+    .diagnostics-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      background: color-mix(in srgb, var(--chart-bg) 58%, transparent);
+    }
+
+    .diagnostics-card h3 {
+      margin: 0;
+      padding: 9px 11px;
+      font-size: .84rem;
+      letter-spacing: .02em;
+      color: var(--accent-2);
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--panel-bg-2) 78%, transparent);
+      text-transform: uppercase;
+    }
+
+    .diagnostics-card-content {
+      padding: 10px;
+    }
+
+    .diagnostics-grid {
+      display: grid;
+      gap: 7px;
+    }
+
+    .diagnostic-row {
+      display: grid;
+      grid-template-columns: 155px minmax(0, 1fr);
+      gap: 8px;
+      font-size: .82rem;
+      line-height: 1.32;
+      padding: 6px 0;
+      border-bottom: 1px dashed color-mix(in srgb, var(--line) 70%, transparent);
+    }
+
+    .diagnostic-row:last-child {
+      border-bottom: 0;
+    }
+
+    .diagnostic-row .key {
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .diagnostic-row .val {
+      color: var(--text);
+      word-break: break-word;
+    }
+
+    .diagnostic-log {
+      white-space: pre-wrap;
+      font-family: Consolas, Monaco, "Courier New", monospace;
+      font-size: .76rem;
+      line-height: 1.38;
+      background: color-mix(in srgb, var(--app-bg) 80%, black 8%);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      max-height: 420px;
+      overflow: auto;
+    }
+
+    body.lab-scope-theme .diagnostic-log {
+      background: #ffffff;
+    }
+
+    .test-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .test-item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 9px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px;
+      align-items: start;
+      background: color-mix(in srgb, var(--panel-bg) 58%, transparent);
+      font-size: .8rem;
+      line-height: 1.32;
+    }
+
+    .test-badge {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: .76rem;
+      color: white;
+      background: #718096;
+    }
+
+    .test-item.good .test-badge { background: #1f9d55; }
+    .test-item.warn .test-badge { background: #b7791f; }
+    .test-item.bad .test-badge { background: #c53030; }
+
+    .test-item strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .test-item span {
+      display: block;
+      color: var(--muted);
+    }
+
+    .diagnostics-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      padding: 10px 14px;
+      color: var(--muted);
+      font-size: .78rem;
+      background: color-mix(in srgb, var(--panel-bg-2) 62%, transparent);
+    }
+
+    .diagnostics-footer strong {
+      color: var(--accent-2);
+    }
+
+    .copy-flash {
+      color: #1f9d55;
+      font-weight: 900;
+    }
+
+    @media (max-width: 900px) {
+      .diagnostics-summary {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+      }
+
+      .diagnostics-body {
+        grid-template-columns: 1fr;
+      }
+
+      .diagnostic-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
   </style>
 </head>
 
@@ -1487,7 +1752,8 @@
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <button id="workspaceBtn" class="header-action" type="button">Full Workspace</button>
-        <div class="version">REV 012 · lab-scope light theme</div>
+        <button id="diagnosticsBtn" class="header-action" type="button">Diagnostics</button>
+        <div class="version">REV 013 · diagnostics console</div>
       </div>
     </div>
   </header>
@@ -1677,7 +1943,7 @@
           <div class="graph-top">
             <div class="graph-title-block">
               <h2 id="chartTitle">Graph</h2>
-              <div class="graph-subtitle" id="chartSubtitle">REV 012 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
+              <div class="graph-subtitle" id="chartSubtitle">REV 013 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
             </div>
 
             <div class="screen-only" style="min-width:220px;">
@@ -1829,6 +2095,81 @@
     </div>
   </main>
 
+  <div class="diagnostics-backdrop" id="diagnosticsBackdrop" aria-hidden="true">
+    <div class="diagnostics-panel" role="dialog" aria-modal="true" aria-labelledby="diagnosticsTitle">
+      <div class="diagnostics-header">
+        <div>
+          <h2 id="diagnosticsTitle">Diagnostics Console</h2>
+          <div class="sub">Full internal debug snapshot, self-tests, report copy, and runtime health checks.</div>
+        </div>
+        <div class="diagnostics-actions">
+          <button id="runDiagnosticsBtn" type="button">Run Test</button>
+          <button id="copyDiagnosticsBtn" class="secondary" type="button">Copy Report</button>
+          <button id="closeDiagnosticsBtn" class="secondary" type="button">Close</button>
+        </div>
+      </div>
+
+      <div class="diagnostics-summary">
+        <div class="diagnostic-kpi" id="diagHealthKpi">
+          <div class="label">Health</div>
+          <div class="value">—</div>
+        </div>
+        <div class="diagnostic-kpi">
+          <div class="label">Rows</div>
+          <div class="value" id="diagRowsKpi">—</div>
+        </div>
+        <div class="diagnostic-kpi">
+          <div class="label">Columns</div>
+          <div class="value" id="diagColsKpi">—</div>
+        </div>
+        <div class="diagnostic-kpi">
+          <div class="label">Lines</div>
+          <div class="value" id="diagLinesKpi">—</div>
+        </div>
+        <div class="diagnostic-kpi">
+          <div class="label">Events</div>
+          <div class="value" id="diagEventsKpi">—</div>
+        </div>
+      </div>
+
+      <div class="diagnostics-body">
+        <div class="diagnostics-card">
+          <h3>Runtime State</h3>
+          <div class="diagnostics-card-content">
+            <div class="diagnostics-grid" id="diagnosticsStateGrid"></div>
+          </div>
+        </div>
+
+        <div class="diagnostics-card">
+          <h3>Self-Test Results</h3>
+          <div class="diagnostics-card-content">
+            <div class="test-list" id="diagnosticsTestList"></div>
+          </div>
+        </div>
+
+        <div class="diagnostics-card">
+          <h3>Data / Graph Details</h3>
+          <div class="diagnostics-card-content">
+            <div class="diagnostics-grid" id="diagnosticsDataGrid"></div>
+          </div>
+        </div>
+
+        <div class="diagnostics-card">
+          <h3>Copyable Debug Report</h3>
+          <div class="diagnostics-card-content">
+            <div class="diagnostic-log" id="diagnosticsReportText">Run diagnostics to generate report.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="diagnostics-footer">
+        <div id="diagnosticsFooterText">Diagnostics idle.</div>
+        <div><strong>REV 013</strong> · PoppeScope OBD Workstation</div>
+      </div>
+    </div>
+  </div>
+
+
   <script>
     let headers = [];
     let rawRows = [];
@@ -1860,6 +2201,21 @@
 
     const els = {
       workspaceBtn: document.getElementById("workspaceBtn"),
+      diagnosticsBtn: document.getElementById("diagnosticsBtn"),
+      diagnosticsBackdrop: document.getElementById("diagnosticsBackdrop"),
+      runDiagnosticsBtn: document.getElementById("runDiagnosticsBtn"),
+      copyDiagnosticsBtn: document.getElementById("copyDiagnosticsBtn"),
+      closeDiagnosticsBtn: document.getElementById("closeDiagnosticsBtn"),
+      diagHealthKpi: document.getElementById("diagHealthKpi"),
+      diagRowsKpi: document.getElementById("diagRowsKpi"),
+      diagColsKpi: document.getElementById("diagColsKpi"),
+      diagLinesKpi: document.getElementById("diagLinesKpi"),
+      diagEventsKpi: document.getElementById("diagEventsKpi"),
+      diagnosticsStateGrid: document.getElementById("diagnosticsStateGrid"),
+      diagnosticsDataGrid: document.getElementById("diagnosticsDataGrid"),
+      diagnosticsTestList: document.getElementById("diagnosticsTestList"),
+      diagnosticsReportText: document.getElementById("diagnosticsReportText"),
+      diagnosticsFooterText: document.getElementById("diagnosticsFooterText"),
       file: document.getElementById("csvFile"),
       status: document.getElementById("status"),
       filePills: document.getElementById("filePills"),
@@ -1920,6 +2276,18 @@
     };
 
     els.workspaceBtn.addEventListener("click", toggleWorkspaceMode);
+    els.diagnosticsBtn.addEventListener("click", openDiagnosticsPanel);
+    els.runDiagnosticsBtn.addEventListener("click", runDiagnostics);
+    els.copyDiagnosticsBtn.addEventListener("click", copyDiagnosticsReport);
+    els.closeDiagnosticsBtn.addEventListener("click", closeDiagnosticsPanel);
+    els.diagnosticsBackdrop.addEventListener("click", event => {
+      if (event.target === els.diagnosticsBackdrop) closeDiagnosticsPanel();
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && els.diagnosticsBackdrop.classList.contains("open")) {
+        closeDiagnosticsPanel();
+      }
+    });
     els.file.addEventListener("change", handleFile);
     els.addLineBtn.addEventListener("click", addSelectedLine);
     els.drawBtn.addEventListener("click", drawGraph);
@@ -2006,6 +2374,339 @@
         }, 80);
       }
     });
+
+    function openDiagnosticsPanel() {
+      els.diagnosticsBackdrop.classList.add("open");
+      els.diagnosticsBackdrop.setAttribute("aria-hidden", "false");
+      runDiagnostics();
+    }
+
+    function closeDiagnosticsPanel() {
+      els.diagnosticsBackdrop.classList.remove("open");
+      els.diagnosticsBackdrop.setAttribute("aria-hidden", "true");
+    }
+
+    function runDiagnostics() {
+      const snapshot = collectDiagnosticsSnapshot();
+      const tests = runDiagnosticsSelfTests(snapshot);
+      const report = buildDiagnosticsReport(snapshot, tests);
+
+      renderDiagnosticsSnapshot(snapshot, tests, report);
+
+      const failed = tests.filter(test => test.status === "bad").length;
+      const warned = tests.filter(test => test.status === "warn").length;
+
+      if (failed) {
+        els.diagnosticsFooterText.innerHTML = '<span class="copy-flash" style="color:#c53030;">Diagnostics complete: ' + failed + ' failed check(s), ' + warned + ' warning(s).</span>';
+      } else if (warned) {
+        els.diagnosticsFooterText.innerHTML = '<span class="copy-flash" style="color:#b7791f;">Diagnostics complete: ' + warned + ' warning(s), no failed checks.</span>';
+      } else {
+        els.diagnosticsFooterText.innerHTML = '<span class="copy-flash">Diagnostics complete: all core checks passed.</span>';
+      }
+    }
+
+    function collectDiagnosticsSnapshot() {
+      const visibleLines = graphLines.filter(line => line.visible);
+      const numericColumns = headers.filter(columnHasNumbers);
+      const xCol = els.xColumn ? els.xColumn.value || "__rowNumber" : "__rowNumber";
+      const selectedTheme = els.themePreset ? els.themePreset.value : "unknown";
+
+      let browserStorage = "Unavailable";
+      try {
+        const key = "__poppescope_test__";
+        localStorage.setItem(key, "ok");
+        browserStorage = localStorage.getItem(key) === "ok" ? "Available" : "Blocked";
+        localStorage.removeItem(key);
+      } catch (err) {
+        browserStorage = "Blocked / restricted";
+      }
+
+      const canvasRect = els.chart ? els.chart.getBoundingClientRect() : { width: 0, height: 0 };
+      const chartWidth = Math.round(canvasRect.width || 0);
+      const chartHeight = Math.round(canvasRect.height || 0);
+
+      return {
+        rev: "REV 013",
+        appName: "PoppeScope OBD Workstation",
+        timestamp: new Date().toISOString(),
+        localTime: new Date().toLocaleString(),
+        fileName: currentFileName || "No CSV loaded",
+        rows: parsedData.length,
+        rawRows: rawRows.length,
+        columns: headers.length,
+        numericColumns: numericColumns.length,
+        numericColumnNames: numericColumns,
+        headers: headers.slice(),
+        xAxis: xCol === "__rowNumber" ? "Row Number" : xCol,
+        activeLines: visibleLines.length,
+        totalLines: graphLines.length,
+        graphLines: graphLines.map((line, index) => ({
+          index: index + 1,
+          column: line.column,
+          color: line.color,
+          visible: line.visible
+        })),
+        graphNotes: graphNotes.length,
+        events: detectedEvents.length,
+        eventTitles: detectedEvents.slice(0, 12).map(event => event.title + " @ X " + formatNumber(event.startX) + "–" + formatNumber(event.endX)),
+        zoomActive: Boolean(zoomRange),
+        zoomRange: zoomRange ? { ...zoomRange } : null,
+        zoomHistoryCount: Array.isArray(zoomHistory) ? zoomHistory.length : 0,
+        rulersEnabled: Boolean(els.measureMode && els.measureMode.checked),
+        rulerInitialized: Boolean(rulerCursors && rulerCursors.initialized),
+        rulerValues: rulerCursors && rulerCursors.initialized ? {
+          xA: rulerCursors.vA.value,
+          xB: rulerCursors.vB.value,
+          yA: rulerCursors.hA.value,
+          yB: rulerCursors.hB.value
+        } : null,
+        theme: selectedTheme,
+        labScopeTheme: document.body.classList.contains("lab-scope-theme"),
+        workspaceMode: document.body.classList.contains("workstation-mode"),
+        fullScreen: Boolean(document.fullscreenElement),
+        canvasWidth: chartWidth,
+        canvasHeight: chartHeight,
+        renderPoints: lastRenderPoints.length,
+        graphBounds: graphBounds ? {
+          minX: graphBounds.minX,
+          maxX: graphBounds.maxX,
+          minY: graphBounds.minY,
+          maxY: graphBounds.maxY,
+          chartW: graphBounds.chartW,
+          chartH: graphBounds.chartH
+        } : null,
+        browser: navigator.userAgent,
+        language: navigator.language,
+        platform: navigator.platform,
+        online: navigator.onLine,
+        storage: browserStorage,
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          devicePixelRatio: window.devicePixelRatio || 1
+        },
+        memory: performance && performance.memory ? {
+          usedJSHeapSize: performance.memory.usedJSHeapSize,
+          totalJSHeapSize: performance.memory.totalJSHeapSize,
+          jsHeapSizeLimit: performance.memory.jsHeapSizeLimit
+        } : null,
+        loadTiming: performance && performance.now ? Math.round(performance.now()) : null
+      };
+    }
+
+    function runDiagnosticsSelfTests(snapshot) {
+      const tests = [];
+      const add = (status, name, detail) => tests.push({ status, name, detail });
+
+      add(snapshot.rows > 0 ? "good" : "warn", "CSV data loaded", snapshot.rows > 0 ? snapshot.rows + " parsed row(s)." : "No CSV loaded yet.");
+      add(snapshot.columns > 0 ? "good" : "warn", "Column headers detected", snapshot.columns > 0 ? snapshot.columns + " header(s)." : "No header row loaded.");
+      add(snapshot.numericColumns > 0 ? "good" : "warn", "Numeric PID columns detected", snapshot.numericColumns + " numeric column(s) detected.");
+      add(snapshot.totalLines > 0 ? "good" : "warn", "Graph lines configured", snapshot.totalLines + " total line(s), " + snapshot.activeLines + " visible.");
+      add(snapshot.canvasWidth > 300 && snapshot.canvasHeight > 250 ? "good" : "bad", "Canvas size healthy", snapshot.canvasWidth + " × " + snapshot.canvasHeight + " px.");
+      add(els.chart && typeof els.chart.getContext === "function" ? "good" : "bad", "Canvas rendering available", els.chart && els.chart.getContext ? "2D canvas context is available." : "Canvas context is not available.");
+      add(typeof parseCSV === "function" ? "good" : "bad", "CSV parser present", "parseCSV function " + (typeof parseCSV === "function" ? "loaded." : "missing."));
+      add(typeof drawGraph === "function" ? "good" : "bad", "Graph renderer present", "drawGraph function " + (typeof drawGraph === "function" ? "loaded." : "missing."));
+      add(typeof detectCommonEvents === "function" ? "good" : "bad", "Event detector present", "detectCommonEvents function " + (typeof detectCommonEvents === "function" ? "loaded." : "missing."));
+      add(typeof renderTrackingTable === "function" ? "good" : "bad", "Tracking table present", "renderTrackingTable function " + (typeof renderTrackingTable === "function" ? "loaded." : "missing."));
+      add(typeof renderFloatingRulersPanel === "function" ? "good" : "bad", "Floating rulers present", "renderFloatingRulersPanel function " + (typeof renderFloatingRulersPanel === "function" ? "loaded." : "missing."));
+      add(snapshot.storage === "Available" ? "good" : "warn", "Browser local storage", snapshot.storage);
+      add(snapshot.renderPoints > 0 || snapshot.totalLines === 0 ? "good" : "warn", "Rendered graph points", snapshot.renderPoints + " currently mapped point(s).");
+      add(snapshot.graphBounds || snapshot.totalLines === 0 ? "good" : "warn", "Graph bounds calculated", snapshot.graphBounds ? "Bounds ready." : "No graph bounds yet.");
+      add(snapshot.theme ? "good" : "warn", "Theme state", "Theme: " + snapshot.theme + ".");
+      add(snapshot.workspaceMode ? "good" : "good", "Workspace mode state", snapshot.workspaceMode ? "Full workspace active." : "Standard workspace active.");
+
+      const requiredIds = [
+        "csvFile", "chart", "xColumn", "lineColumn", "addLineBtn", "drawBtn",
+        "resetZoomBtn", "themePreset", "trackingTable", "floatingRulersPanel",
+        "scopeChannelRail", "diagnosticsBackdrop", "diagnosticsReportText"
+      ];
+
+      const missingIds = requiredIds.filter(id => !document.getElementById(id));
+      add(missingIds.length === 0 ? "good" : "bad", "Required UI elements", missingIds.length === 0 ? "All required IDs found." : "Missing: " + missingIds.join(", "));
+
+      const duplicateHeaders = snapshot.headers.filter((header, index, arr) => arr.indexOf(header) !== index);
+      add(duplicateHeaders.length === 0 ? "good" : "warn", "Duplicate headers", duplicateHeaders.length === 0 ? "No duplicate headers found." : "Duplicates: " + duplicateHeaders.join(", "));
+
+      if (snapshot.rows > 0 && snapshot.numericColumns === 0) {
+        add("bad", "CSV graphability", "CSV loaded but no numeric columns were detected.");
+      } else {
+        add("good", "CSV graphability", snapshot.rows > 0 ? "CSV can be graphed." : "Waiting for CSV.");
+      }
+
+      return tests;
+    }
+
+    function renderDiagnosticsSnapshot(snapshot, tests, report) {
+      const failed = tests.filter(test => test.status === "bad").length;
+      const warned = tests.filter(test => test.status === "warn").length;
+      const passed = tests.filter(test => test.status === "good").length;
+
+      els.diagHealthKpi.className = "diagnostic-kpi " + (failed ? "bad" : warned ? "warn" : "good");
+      els.diagHealthKpi.querySelector(".value").textContent = failed ? "Fail" : warned ? "Warn" : "Good";
+      els.diagRowsKpi.textContent = snapshot.rows;
+      els.diagColsKpi.textContent = snapshot.columns;
+      els.diagLinesKpi.textContent = snapshot.activeLines + "/" + snapshot.totalLines;
+      els.diagEventsKpi.textContent = snapshot.events;
+
+      els.diagnosticsStateGrid.innerHTML = "";
+      [
+        ["Revision", snapshot.rev],
+        ["Local Time", snapshot.localTime],
+        ["Theme", snapshot.theme + (snapshot.labScopeTheme ? " (light scope active)" : "")],
+        ["Workspace", snapshot.workspaceMode ? "Full workspace" : "Standard"],
+        ["Fullscreen", snapshot.fullScreen ? "Yes" : "No"],
+        ["Canvas", snapshot.canvasWidth + " × " + snapshot.canvasHeight],
+        ["Viewport", snapshot.viewport.width + " × " + snapshot.viewport.height + " @ DPR " + snapshot.viewport.devicePixelRatio],
+        ["Storage", snapshot.storage],
+        ["Online", snapshot.online ? "Yes" : "No"],
+        ["Platform", snapshot.platform]
+      ].forEach(row => addDiagnosticRow(els.diagnosticsStateGrid, row[0], row[1]));
+
+      els.diagnosticsDataGrid.innerHTML = "";
+      [
+        ["CSV", snapshot.fileName],
+        ["Rows", snapshot.rows],
+        ["Raw Rows", snapshot.rawRows],
+        ["Columns", snapshot.columns],
+        ["Numeric Columns", snapshot.numericColumns],
+        ["X Axis", snapshot.xAxis],
+        ["Visible Lines", snapshot.activeLines],
+        ["Total Lines", snapshot.totalLines],
+        ["Graph Notes", snapshot.graphNotes],
+        ["Detected Events", snapshot.events],
+        ["Zoom Active", snapshot.zoomActive ? "Yes" : "No"],
+        ["Zoom History", snapshot.zoomHistoryCount],
+        ["Rulers", snapshot.rulersEnabled ? "Visible" : "Hidden"],
+        ["Ruler Initialized", snapshot.rulerInitialized ? "Yes" : "No"],
+        ["Render Points", snapshot.renderPoints]
+      ].forEach(row => addDiagnosticRow(els.diagnosticsDataGrid, row[0], row[1]));
+
+      els.diagnosticsTestList.innerHTML = "";
+      tests.forEach(test => {
+        const item = document.createElement("div");
+        item.className = "test-item " + test.status;
+        const badgeText = test.status === "good" ? "✓" : test.status === "warn" ? "!" : "×";
+        item.innerHTML =
+          '<div class="test-badge">' + badgeText + '</div>' +
+          '<div><strong>' + escapeHtml(test.name) + '</strong><span>' + escapeHtml(test.detail) + '</span></div>';
+        els.diagnosticsTestList.appendChild(item);
+      });
+
+      els.diagnosticsReportText.textContent = report;
+    }
+
+    function addDiagnosticRow(parent, key, value) {
+      const row = document.createElement("div");
+      row.className = "diagnostic-row";
+      row.innerHTML = '<div class="key">' + escapeHtml(key) + '</div><div class="val">' + escapeHtml(String(value ?? "—")) + '</div>';
+      parent.appendChild(row);
+    }
+
+    function buildDiagnosticsReport(snapshot, tests) {
+      const lines = [];
+      const failed = tests.filter(test => test.status === "bad").length;
+      const warned = tests.filter(test => test.status === "warn").length;
+      const passed = tests.filter(test => test.status === "good").length;
+
+      lines.push("POPPE SCOPE OBD WORKSTATION - DIAGNOSTICS REPORT");
+      lines.push("Revision: " + snapshot.rev);
+      lines.push("Generated: " + snapshot.localTime + " (" + snapshot.timestamp + ")");
+      lines.push("Health: " + (failed ? "FAIL" : warned ? "WARN" : "GOOD") + " | Passed: " + passed + " | Warnings: " + warned + " | Failed: " + failed);
+      lines.push("");
+
+      lines.push("APP / ENVIRONMENT");
+      lines.push("- Theme: " + snapshot.theme);
+      lines.push("- Lab scope theme active: " + snapshot.labScopeTheme);
+      lines.push("- Workspace mode: " + snapshot.workspaceMode);
+      lines.push("- Fullscreen: " + snapshot.fullScreen);
+      lines.push("- Canvas: " + snapshot.canvasWidth + " x " + snapshot.canvasHeight);
+      lines.push("- Viewport: " + snapshot.viewport.width + " x " + snapshot.viewport.height + " @ DPR " + snapshot.viewport.devicePixelRatio);
+      lines.push("- Storage: " + snapshot.storage);
+      lines.push("- Online: " + snapshot.online);
+      lines.push("- Platform: " + snapshot.platform);
+      lines.push("- Browser: " + snapshot.browser);
+      lines.push("");
+
+      lines.push("CSV / DATA");
+      lines.push("- File: " + snapshot.fileName);
+      lines.push("- Parsed rows: " + snapshot.rows);
+      lines.push("- Raw rows: " + snapshot.rawRows);
+      lines.push("- Columns: " + snapshot.columns);
+      lines.push("- Numeric columns: " + snapshot.numericColumns);
+      lines.push("- X axis: " + snapshot.xAxis);
+      lines.push("- Headers: " + (snapshot.headers.length ? snapshot.headers.join(" | ") : "none"));
+      lines.push("- Numeric headers: " + (snapshot.numericColumnNames.length ? snapshot.numericColumnNames.join(" | ") : "none"));
+      lines.push("");
+
+      lines.push("GRAPH / VISUAL STATE");
+      lines.push("- Total graph lines: " + snapshot.totalLines);
+      lines.push("- Active graph lines: " + snapshot.activeLines);
+      snapshot.graphLines.forEach(line => {
+        lines.push("  " + line.index + ". " + line.column + " | color " + line.color + " | " + (line.visible ? "visible" : "hidden"));
+      });
+      lines.push("- Rendered points: " + snapshot.renderPoints);
+      lines.push("- Graph notes: " + snapshot.graphNotes);
+      lines.push("- Graph bounds: " + (snapshot.graphBounds ? JSON.stringify(snapshot.graphBounds) : "not calculated"));
+      lines.push("");
+
+      lines.push("ZOOM / RULERS");
+      lines.push("- Zoom active: " + snapshot.zoomActive);
+      lines.push("- Zoom history count: " + snapshot.zoomHistoryCount);
+      lines.push("- Zoom range: " + (snapshot.zoomRange ? JSON.stringify(snapshot.zoomRange) : "none"));
+      lines.push("- Rulers enabled: " + snapshot.rulersEnabled);
+      lines.push("- Ruler initialized: " + snapshot.rulerInitialized);
+      lines.push("- Ruler values: " + (snapshot.rulerValues ? JSON.stringify(snapshot.rulerValues) : "none"));
+      lines.push("");
+
+      lines.push("EVENTS");
+      lines.push("- Detected event count: " + snapshot.events);
+      if (snapshot.eventTitles.length) {
+        snapshot.eventTitles.forEach((eventTitle, index) => lines.push("  " + (index + 1) + ". " + eventTitle));
+      } else {
+        lines.push("  none");
+      }
+      lines.push("");
+
+      lines.push("SELF TESTS");
+      tests.forEach(test => {
+        lines.push("[" + test.status.toUpperCase() + "] " + test.name + " - " + test.detail);
+      });
+      lines.push("");
+
+      lines.push("NOTES");
+      lines.push("- This report is generated locally in the browser.");
+      lines.push("- No CSV data is uploaded by this standalone HTML tool.");
+      lines.push("- Use this report to troubleshoot UI, graphing, parsing, ruler, zoom, or data issues.");
+
+      return lines.join("\\n");
+    }
+
+    async function copyDiagnosticsReport() {
+      const text = els.diagnosticsReportText.textContent || "";
+
+      if (!text.trim() || text.includes("Run diagnostics")) {
+        runDiagnostics();
+      }
+
+      const finalText = els.diagnosticsReportText.textContent || "";
+
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(finalText);
+        } else {
+          const temp = document.createElement("textarea");
+          temp.value = finalText;
+          document.body.appendChild(temp);
+          temp.select();
+          document.execCommand("copy");
+          document.body.removeChild(temp);
+        }
+
+        els.diagnosticsFooterText.innerHTML = '<span class="copy-flash">Diagnostics report copied to clipboard.</span>';
+      } catch (err) {
+        els.diagnosticsFooterText.innerHTML = '<span style="color:#c53030;font-weight:900;">Copy failed. Select the report text manually.</span>';
+      }
+    }
 
     function handleFile(event) {
       const file = event.target.files[0];
