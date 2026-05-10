@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer REV 019</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer REV 020</title>
   <style>
     :root {
       --app-bg: #e9eef2;
@@ -1260,7 +1260,7 @@
       }
     }
   
-    /* REV 019: original light lab-scope presentation theme */
+    /* REV 020: original light lab-scope presentation theme */
     body.lab-scope-theme {
       background: linear-gradient(180deg, #f3f7fa, #e9eef2);
     }
@@ -1741,7 +1741,7 @@
     }
 
   
-    /* REV 019 Diagnostics: scrolling + activity feedback */
+    /* REV 020 Diagnostics: scrolling + activity feedback */
     .diagnostics-panel {
       height: min(880px, calc(100vh - 24px));
       min-height: 560px;
@@ -1962,7 +1962,7 @@
     }
 
   
-    /* REV 019: layout freedom, no clipped button text, menu-driven panels */
+    /* REV 020: layout freedom, no clipped button text, menu-driven panels */
     button,
     .header-action,
     .scope-icon-btn,
@@ -2185,7 +2185,7 @@
     }
 
   
-    /* REV 019: cleaner graph layout + movable/minimizable ruler dock */
+    /* REV 020: cleaner graph layout + movable/minimizable ruler dock */
     .card.graph-card {
       grid-template-rows: auto auto auto auto auto auto;
       align-content: start;
@@ -2330,7 +2330,7 @@
     }
 
   
-    /* REV 019: modern workstation look */
+    /* REV 020: modern workstation look */
     :root {
       --header-h: 68px;
       --rail-w: 62px;
@@ -2816,7 +2816,7 @@
     }
 
   
-    /* REV 019: fixed no-scroll scope-style app layout */
+    /* REV 020: fixed no-scroll scope-style app layout */
     :root {
       --header-h: 58px;
       --footer-h: 40px;
@@ -3378,7 +3378,7 @@
     }
 
   
-    /* REV 019: closer fixed-layout match to the reference image */
+    /* REV 020: closer fixed-layout match to the reference image */
     :root {
       --header-h: 56px;
       --footer-h: 42px;
@@ -3820,6 +3820,621 @@
       .chart-command-right { display: none !important; }
     }
 
+  
+    /* REV 020: closer visual match to the provided reference */
+    :root {
+      --header-h: 56px;
+      --footer-h: 42px;
+      --rail-w: 56px;
+      --side-w: 326px;
+      --app-gap: 12px;
+      --card-radius: 14px;
+      --soft-border: rgba(73,127,166,.16);
+      --soft-shadow: 0 10px 22px rgba(42,78,97,.055);
+      --blue-head: linear-gradient(180deg, #eff6fd, #dcecf8);
+    }
+
+    body {
+      background: linear-gradient(180deg, #f5f9fd, #edf4f9) !important;
+      color: #173042;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+      height: var(--header-h) !important;
+      box-shadow: 0 6px 18px rgba(42,78,97,.05) !important;
+    }
+
+    .header-inner {
+      height: var(--header-h) !important;
+      width: calc(100vw - 16px) !important;
+      gap: 12px !important;
+    }
+
+    .brand-row { gap: 12px !important; }
+
+    .brand-badge {
+      width: 30px !important;
+      height: 30px !important;
+      border-radius: 8px !important;
+      background: linear-gradient(180deg, #59a7f4, #2a78dc) !important;
+      box-shadow: 0 8px 16px rgba(42,120,220,.18) !important;
+    }
+
+    h1 {
+      font-size: 1rem !important;
+      font-weight: 900 !important;
+      letter-spacing: -.015em !important;
+    }
+
+    .header-action, .version {
+      height: 36px !important;
+      min-height: 36px !important;
+      border-radius: 10px !important;
+      border: 1px solid rgba(74,128,168,.16) !important;
+      box-shadow: 0 2px 8px rgba(42,78,97,.04) !important;
+    }
+
+    .header-action {
+      min-width: 124px !important;
+      font-size: .82rem !important;
+      font-weight: 800 !important;
+      background: linear-gradient(180deg, #ffffff, #edf4fa) !important;
+    }
+
+    .version {
+      font-size: .82rem !important;
+      font-weight: 800 !important;
+      background: #eff6fd !important;
+    }
+
+    .app-rail {
+      top: calc(var(--header-h) + 10px) !important;
+      bottom: calc(var(--footer-h) + 10px) !important;
+      width: var(--rail-w) !important;
+      padding: 8px 6px !important;
+      gap: 8px !important;
+      border-radius: 14px !important;
+      background: linear-gradient(180deg, #fbfdff, #eef5fa) !important;
+    }
+
+    .rail-btn {
+      width: 40px !important;
+      height: 40px !important;
+      min-width: 40px !important;
+      min-height: 40px !important;
+      border-radius: 10px !important;
+      font-size: 1rem !important;
+    }
+
+    main {
+      top: var(--header-h) !important;
+      bottom: var(--footer-h) !important;
+      left: calc(var(--rail-w) + 16px) !important;
+      right: 8px !important;
+      padding: 10px 0 8px !important;
+    }
+
+    .layout {
+      grid-template-columns: var(--side-w) minmax(0, 1fr) !important;
+      gap: var(--app-gap) !important;
+      height: 100% !important;
+      overflow: hidden !important;
+    }
+
+    .side {
+      display: grid !important;
+      grid-template-rows: 180px 156px 160px 182px 52px !important;
+      gap: 10px !important;
+      align-content: stretch !important;
+      overflow: hidden !important;
+    }
+
+    .side > .card {
+      border-radius: var(--card-radius) !important;
+      border: 1px solid var(--soft-border) !important;
+      box-shadow: var(--soft-shadow) !important;
+      background: linear-gradient(180deg, #fbfdff, #f3f8fc) !important;
+      padding: 12px 13px !important;
+      overflow: hidden !important;
+    }
+
+    .side > .card h2 {
+      margin: 0 0 10px !important;
+      font-size: .76rem !important;
+      color: #204e7f !important;
+      letter-spacing: .06em !important;
+      line-height: 1 !important;
+    }
+
+    .side .field label,
+    .side .mini,
+    .side .hint,
+    .side .muted,
+    .side .status {
+      font-size: .72rem !important;
+      line-height: 1.28 !important;
+      color: rgba(23,48,66,.76) !important;
+    }
+
+    .side input,
+    .side select,
+    .side textarea,
+    .side button {
+      min-height: 34px !important;
+      font-size: .8rem !important;
+      border-radius: 10px !important;
+    }
+
+    /* rebuilt active lines card */
+    .reference-active-shell {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      min-height: 0;
+      height: calc(100% - 22px);
+    }
+
+    .reference-series-host {
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .reference-series-host .series-list {
+      max-height: 100%;
+      min-height: 0;
+      display: grid;
+      gap: 7px !important;
+      overflow: hidden !important;
+    }
+
+    .reference-series-host .series-item {
+      padding: 8px 10px !important;
+      border-radius: 11px !important;
+      background: linear-gradient(180deg, #ffffff, #f4f8fc) !important;
+      border: 1px solid rgba(73,127,166,.12) !important;
+      grid-template-columns: auto minmax(0, 1fr) auto !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.85) !important;
+    }
+
+    .reference-series-host .series-name {
+      font-size: .82rem !important;
+      font-weight: 800 !important;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .reference-series-host .series-meta {
+      font-size: .68rem !important;
+    }
+
+    .series-actions { gap: 5px !important; }
+    .series-actions input[type="color"] {
+      width: 34px !important;
+      height: 28px !important;
+      min-height: 28px !important;
+      padding: 0 !important;
+    }
+
+    .series-actions .tiny-btn {
+      min-height: 28px !important;
+      height: 28px !important;
+      padding: 4px 8px !important;
+      font-size: .68rem !important;
+      border-radius: 8px !important;
+      white-space: nowrap !important;
+    }
+
+    .reference-addline-bar {
+      display: flex;
+      align-items: center;
+    }
+
+    .reference-addline-btn {
+      width: 100%;
+      min-height: 40px !important;
+      border-radius: 11px !important;
+      border: 1px solid rgba(73,127,166,.14) !important;
+      background: linear-gradient(180deg, #f5faff, #e7f0f9) !important;
+      color: #1a5aa0 !important;
+      font-weight: 800 !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.85) !important;
+    }
+
+    .reference-setup-details {
+      border-radius: 10px !important;
+      background: #f8fbfe !important;
+      border: 1px solid rgba(73,127,166,.10) !important;
+      overflow: hidden !important;
+    }
+
+    .reference-setup-details summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 8px 10px;
+      font-size: .74rem;
+      font-weight: 800;
+      color: #3a5b79;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .reference-setup-details summary::-webkit-details-marker { display: none; }
+    .reference-setup-details summary::after {
+      content: "▾";
+      font-size: .72rem;
+      color: #4a6582;
+    }
+
+    .reference-setup-details:not([open]) .reference-setup-body {
+      display: none;
+    }
+
+    .reference-setup-body {
+      display: grid;
+      gap: 8px;
+      padding: 0 10px 10px;
+    }
+
+    .reference-setup-body .button-row {
+      gap: 6px !important;
+    }
+
+    .reference-setup-body .button-row button {
+      min-height: 32px !important;
+      font-size: .72rem !important;
+      padding: 6px 8px !important;
+    }
+
+    /* data properties bottom accordion */
+    .reference-data-card {
+      padding: 0 !important;
+      background: linear-gradient(180deg, #f0f7fe, #e5f0fa) !important;
+      overflow: hidden !important;
+    }
+
+    .reference-data-details {
+      height: 100%;
+    }
+
+    .reference-data-details summary {
+      list-style: none;
+      cursor: pointer;
+      height: 52px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #1f5e9f;
+      font-size: .82rem;
+      font-weight: 800;
+    }
+
+    .reference-data-details summary::-webkit-details-marker { display: none; }
+    .reference-data-details summary::after {
+      content: "›";
+      font-size: 1rem;
+      color: #42627f;
+    }
+
+    .reference-data-details[open] {
+      position: absolute;
+      z-index: 20;
+      width: var(--side-w);
+      bottom: calc(var(--footer-h) + 12px);
+      left: calc(var(--rail-w) + 16px);
+      background: linear-gradient(180deg, #fbfdff, #f3f8fc);
+      border: 1px solid var(--soft-border);
+      border-radius: 14px;
+      box-shadow: 0 18px 40px rgba(42,78,97,.16);
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    .reference-data-details[open] summary::after {
+      content: "⌄";
+    }
+
+    .reference-data-body {
+      padding: 0 14px 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .reference-data-body .pill-row {
+      min-height: 0;
+    }
+
+    /* other left cards */
+    .side > .card:not(.reference-data-card) .toggle-row {
+      gap: 8px !important;
+      align-items: start !important;
+      margin-bottom: 8px !important;
+    }
+
+    .side > .card:not(.reference-data-card) .toggle-row input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      min-height: 15px !important;
+      margin-top: 3px !important;
+    }
+
+    .measure-readout {
+      max-height: 62px !important;
+      overflow: hidden !important;
+      border-radius: 10px !important;
+      padding: 8px !important;
+      background: #f8fbfe !important;
+      font-size: .72rem !important;
+    }
+
+    .notes-list {
+      max-height: 72px !important;
+      overflow: hidden !important;
+    }
+
+    .layout > section.stack {
+      grid-template-rows: minmax(0, 1fr) 84px 126px !important;
+      gap: 10px !important;
+      overflow: hidden !important;
+    }
+
+    .graph-card {
+      grid-template-rows: 48px minmax(0, 1fr) !important;
+      gap: 8px !important;
+      padding: 10px !important;
+      border-radius: 14px !important;
+      border: 1px solid var(--soft-border) !important;
+      box-shadow: var(--soft-shadow) !important;
+      background: linear-gradient(180deg, #ffffff, #f6f9fc) !important;
+      overflow: hidden !important;
+    }
+
+    .chart-command-bar {
+      min-height: 48px !important;
+      height: 48px !important;
+      padding: 6px 10px !important;
+      border-radius: 12px !important;
+      border: 1px solid var(--soft-border) !important;
+      background: linear-gradient(180deg, #ffffff, #f5f9fc) !important;
+      box-shadow: 0 4px 12px rgba(42,78,97,.04) !important;
+    }
+
+    .chart-command-left,
+    .chart-command-center,
+    .chart-command-right {
+      min-width: 0 !important;
+      overflow: hidden !important;
+      gap: 8px !important;
+    }
+
+    .command-live-dot {
+      width: 10px !important;
+      height: 10px !important;
+    }
+
+    .command-line-title {
+      font-size: .95rem !important;
+      color: #234b77 !important;
+      font-weight: 900 !important;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chart-scale-select,
+    .chart-tool-btn {
+      height: 36px !important;
+      min-height: 36px !important;
+      border-radius: 10px !important;
+      border: 1px solid rgba(73,127,166,.16) !important;
+      background: linear-gradient(180deg, #ffffff, #edf4fa) !important;
+      box-shadow: 0 2px 8px rgba(42,78,97,.04) !important;
+    }
+
+    .chart-scale-select {
+      width: 150px !important;
+      min-width: 150px !important;
+      font-size: .8rem !important;
+    }
+
+    .chart-tool-btn {
+      width: 36px !important;
+      min-width: 36px !important;
+      padding: 0 !important;
+      font-size: .84rem !important;
+    }
+
+    .scope-plot-row {
+      height: 100% !important;
+      min-height: 0 !important;
+    }
+
+    .chart-shell {
+      height: 100% !important;
+      min-height: 0 !important;
+      padding: 8px !important;
+      border-radius: 12px !important;
+      border: 1px solid var(--soft-border) !important;
+      background: #fff !important;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.86) !important;
+      overflow: hidden !important;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+      border-radius: 10px !important;
+    }
+
+    .floating-rulers-panel {
+      max-width: 220px !important;
+      border-radius: 12px !important;
+      box-shadow: 0 10px 24px rgba(42,78,97,.12) !important;
+      background: rgba(248,251,255,.97) !important;
+    }
+
+    .floating-rulers-title {
+      background: var(--blue-head) !important;
+      border-bottom: 1px solid rgba(73,127,166,.12) !important;
+      border-radius: 12px 12px 0 0 !important;
+    }
+
+    .layout > section.stack > .card:not(.graph-card):not(.scope-bottom-host-card) {
+      height: 84px !important;
+      min-height: 84px !important;
+      max-height: 84px !important;
+      border-radius: 14px !important;
+      border: 1px solid var(--soft-border) !important;
+      box-shadow: var(--soft-shadow) !important;
+      background: linear-gradient(180deg, #fbfdff, #f3f8fc) !important;
+      overflow: hidden !important;
+      padding: 9px 12px !important;
+    }
+
+    .layout > section.stack > .card:not(.graph-card):not(.scope-bottom-host-card) h2 {
+      margin: 0 0 8px !important;
+      font-size: .76rem !important;
+      letter-spacing: .06em !important;
+      color: #204e7f !important;
+    }
+
+    .layout > section.stack > .card:not(.graph-card):not(.scope-bottom-host-card) .table-wrap {
+      max-height: 48px !important;
+      overflow: hidden !important;
+      border-radius: 10px !important;
+      background: #fff !important;
+    }
+
+    .scope-bottom-host-card {
+      height: 126px !important;
+      min-height: 126px !important;
+      max-height: 126px !important;
+      padding: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      overflow: hidden !important;
+    }
+
+    .scope-bottom-host-card #scopeBottomDockHost,
+    .scope-bottom-host-card .scope-bottom-dock {
+      height: 126px !important;
+      min-height: 126px !important;
+      max-height: 126px !important;
+    }
+
+    .scope-bottom-dock {
+      grid-template-columns: minmax(240px, .78fr) minmax(420px, 1.35fr) !important;
+      gap: 10px !important;
+      margin: 0 !important;
+      display: grid !important;
+      overflow: hidden !important;
+    }
+
+    .scope-dock-panel {
+      border-radius: 14px !important;
+      border: 1px solid var(--soft-border) !important;
+      box-shadow: var(--soft-shadow) !important;
+      background: linear-gradient(180deg, #fbfdff, #f3f8fc) !important;
+      overflow: hidden !important;
+    }
+
+    .scope-dock-title {
+      height: 32px !important;
+      padding: 8px 12px !important;
+      font-size: .76rem !important;
+      letter-spacing: .06em !important;
+      color: #204e7f !important;
+      background: var(--blue-head) !important;
+      border-bottom: 1px solid rgba(73,127,166,.12) !important;
+    }
+
+    .outside-legend,
+    .tracking-table-wrap {
+      background: #fff !important;
+    }
+
+    .outside-legend {
+      max-height: 92px !important;
+      padding: 8px !important;
+      gap: 6px !important;
+      overflow: hidden !important;
+    }
+
+    .outside-legend-item {
+      padding: 6px 8px !important;
+      font-size: .76rem !important;
+      border-radius: 9px !important;
+    }
+
+    .tracking-table-wrap {
+      max-height: 92px !important;
+      overflow: hidden !important;
+    }
+
+    .tracking-table-wrap table,
+    .table-wrap table {
+      font-size: .74rem !important;
+    }
+
+    .tracking-table-wrap th,
+    .tracking-table-wrap td,
+    .table-wrap th,
+    .table-wrap td {
+      padding: 6px 8px !important;
+      white-space: nowrap !important;
+    }
+
+    .data-card { display: none !important; }
+
+    .status-footer {
+      height: var(--footer-h) !important;
+      min-height: var(--footer-h) !important;
+      border-radius: 12px !important;
+      padding: 0 14px !important;
+      border: 1px solid var(--soft-border) !important;
+      box-shadow: var(--soft-shadow) !important;
+      background: rgba(248,251,255,.97) !important;
+    }
+
+    .footer-left, .footer-right {
+      gap: 14px !important;
+      font-size: .76rem !important;
+    }
+
+    body, main, .layout, .side, section.stack, .graph-card, .chart-shell {
+      scrollbar-width: none;
+    }
+
+    body::-webkit-scrollbar,
+    main::-webkit-scrollbar,
+    .layout::-webkit-scrollbar,
+    .side::-webkit-scrollbar,
+    section.stack::-webkit-scrollbar,
+    .graph-card::-webkit-scrollbar,
+    .chart-shell::-webkit-scrollbar {
+      display: none;
+    }
+
+    @media (max-width: 1260px) {
+      :root { --side-w: 302px; }
+      .command-line-title { font-size: .88rem !important; }
+      .scope-bottom-dock {
+        grid-template-columns: minmax(220px, .78fr) minmax(320px, 1.2fr) !important;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .app-rail { display: none !important; }
+      main { left: 8px !important; }
+      .layout { grid-template-columns: 1fr !important; }
+      .side { display: none !important; }
+      .chart-command-right { display: none !important; }
+    }
+
   </style>
 </head>
 
@@ -3835,7 +4450,7 @@
         <button id="layoutMenuBtn" class="header-action" type="button">Layout</button>
         <button id="diagnosticsBtn" class="header-action" type="button">Diagnostics</button>
         <button id="settingsBtn" class="header-action icon-only" type="button" title="Settings">⚙</button>
-        <div class="version">v1.4.4</div>
+        <div class="version">v1.4.5</div>
       </div>
     </div>
   </header>
@@ -4033,7 +4648,7 @@
           <div class="graph-top">
             <div class="graph-title-block">
               <h2 id="chartTitle">Graph</h2>
-              <div class="graph-subtitle" id="chartSubtitle">REV 019 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
+              <div class="graph-subtitle" id="chartSubtitle">REV 020 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
             </div>
 
             <div class="screen-only" style="min-width:220px;">
@@ -4293,7 +4908,7 @@
 
       <div class="diagnostics-footer">
         <div id="diagnosticsFooterText">Diagnostics idle.</div>
-        <div><strong>REV 019</strong> · PoppeScope OBD Workstation</div>
+        <div><strong>REV 020</strong> · PoppeScope OBD Workstation</div>
       </div>
     </div>
   </div>
@@ -4594,6 +5209,7 @@
     function toggleLayoutClass(className) {
       document.body.classList.toggle(className);
       updateLayoutButtons();
+      applyReferenceLayoutChrome();
       relayoutScopePanels();
       scheduleGraphRedraw();
     }
@@ -4621,6 +5237,104 @@
       });
     }
 
+
+
+    function applyReferenceLayoutChrome() {
+      const side = document.querySelector(".side");
+      if (!side) return;
+
+      const cards = side.querySelectorAll(":scope > .card");
+      if (cards.length < 5) return;
+
+      const dataCard = cards[0];
+      const activeCard = cards[1];
+      const eventCard = cards[5];
+      const reportCard = cards[6];
+
+      if (eventCard) eventCard.style.display = "none";
+      if (reportCard) reportCard.style.display = "none";
+
+      if (dataCard && !dataCard.dataset.referenceBuilt) {
+        const originalChildren = Array.from(dataCard.childNodes);
+        const details = document.createElement("details");
+        details.className = "reference-data-details";
+
+        const summary = document.createElement("summary");
+        summary.textContent = "Data Properties";
+
+        const body = document.createElement("div");
+        body.className = "reference-data-body";
+
+        originalChildren.forEach(node => {
+          if (node.nodeType === 1 && node.tagName === "H2") return;
+          body.appendChild(node);
+        });
+
+        dataCard.innerHTML = "";
+        details.appendChild(summary);
+        details.appendChild(body);
+        dataCard.appendChild(details);
+        dataCard.classList.add("reference-data-card");
+        dataCard.dataset.referenceBuilt = "1";
+        side.appendChild(dataCard);
+      }
+
+      if (activeCard && !activeCard.dataset.referenceBuilt) {
+        const heading = activeCard.querySelector("h2");
+        const xField = document.getElementById("xColumn")?.closest(".field");
+        const lineField = document.getElementById("lineColumn")?.closest(".field");
+        const colorRow = document.getElementById("lineColor")?.closest(".row");
+        const buttonRow = activeCard.querySelector(".button-row");
+        const seriesList = document.getElementById("seriesList");
+
+        if (!heading || !xField || !lineField || !colorRow || !buttonRow || !seriesList) return;
+
+        const shell = document.createElement("div");
+        shell.className = "reference-active-shell";
+
+        const listHost = document.createElement("div");
+        listHost.className = "reference-series-host";
+        listHost.appendChild(seriesList);
+
+        const proxyBar = document.createElement("div");
+        proxyBar.className = "reference-addline-bar";
+
+        const proxyBtn = document.createElement("button");
+        proxyBtn.type = "button";
+        proxyBtn.className = "reference-addline-btn";
+        proxyBtn.textContent = "+ Add Line";
+        proxyBtn.addEventListener("click", () => {
+          const actualBtn = document.getElementById("addLineBtn");
+          if (actualBtn) actualBtn.click();
+        });
+
+        const setup = document.createElement("details");
+        setup.className = "reference-setup-details";
+
+        const setupSummary = document.createElement("summary");
+        setupSummary.textContent = "Line Setup";
+
+        const setupBody = document.createElement("div");
+        setupBody.className = "reference-setup-body";
+        setupBody.appendChild(xField);
+        setupBody.appendChild(lineField);
+        setupBody.appendChild(colorRow);
+        setupBody.appendChild(buttonRow);
+
+        setup.appendChild(setupSummary);
+        setup.appendChild(setupBody);
+
+        proxyBar.appendChild(proxyBtn);
+        shell.appendChild(listHost);
+        shell.appendChild(proxyBar);
+        shell.appendChild(setup);
+
+        activeCard.innerHTML = "";
+        activeCard.appendChild(heading);
+        activeCard.appendChild(shell);
+        activeCard.dataset.referenceBuilt = "1";
+      }
+    }
 
     function relayoutScopePanels() {
       const host = els.scopeBottomDockHost;
@@ -4763,7 +5477,7 @@
       const chartHeight = Math.round(canvasRect.height || 0);
 
       return {
-        rev: "REV 019",
+        rev: "REV 020",
         appName: "PoppeScope OBD Workstation",
         timestamp: new Date().toISOString(),
         localTime: new Date().toLocaleString(),
@@ -5291,7 +6005,8 @@
           visible: true
         });
         els.lineColor.value = defaultPalette[1];
-        relayoutScopePanels();
+        applyReferenceLayoutChrome();
+    relayoutScopePanels();
     renderSeriesList();
     updateFooterClock();
     setInterval(updateFooterClock, 1000);
