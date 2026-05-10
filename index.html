@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer v0.9</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer REV 010</title>
   <style>
     :root {
       --app-bg: #0b1110;
@@ -85,6 +85,200 @@
       font-size: .86rem;
       white-space: nowrap;
     }
+
+    .header-action {
+      width: auto;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: .86rem;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 40%, #111 60%), color-mix(in srgb, var(--accent) 22%, #000 78%));
+      color: var(--text);
+      border-color: color-mix(in srgb, var(--accent-2) 42%, transparent);
+      box-shadow: 0 8px 20px rgba(0,0,0,.22);
+    }
+
+    body.workstation-mode {
+      overflow: hidden;
+      background: var(--app-bg);
+    }
+
+    body.workstation-mode header {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 72px;
+      z-index: 50;
+      box-shadow: 0 12px 30px rgba(0,0,0,.22);
+    }
+
+    body.workstation-mode .header-inner {
+      width: calc(100vw - 24px);
+      padding: 13px 0 10px;
+      align-items: center;
+    }
+
+    body.workstation-mode h1 {
+      font-size: 1.35rem;
+    }
+
+    body.workstation-mode .subtitle {
+      margin-top: 4px;
+      font-size: .82rem;
+      max-width: 900px;
+    }
+
+    body.workstation-mode main {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 72px;
+      bottom: 0;
+      width: 100vw;
+      max-width: none;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    body.workstation-mode .layout {
+      height: 100%;
+      grid-template-columns: 325px minmax(0, 1fr);
+      gap: 10px;
+    }
+
+    body.workstation-mode .side {
+      height: 100%;
+      overflow: auto;
+      padding-right: 2px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    body.workstation-mode .side .card {
+      box-shadow: none;
+      padding: 14px;
+      border-radius: 14px;
+    }
+
+    body.workstation-mode .layout > section.stack {
+      height: 100%;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    body.workstation-mode .graph-card {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+      gap: 10px;
+      padding: 12px;
+      box-shadow: none;
+      border-radius: 14px;
+    }
+
+    body.workstation-mode .graph-top {
+      margin-bottom: 0;
+    }
+
+    body.workstation-mode .stats-grid {
+      grid-template-columns: repeat(4, minmax(95px, 1fr));
+      gap: 8px;
+      margin-bottom: 0;
+    }
+
+    body.workstation-mode .stat {
+      min-height: 54px;
+      padding: 9px;
+      border-radius: 11px;
+    }
+
+    body.workstation-mode .stat .k {
+      margin-bottom: 4px;
+      font-size: .72rem;
+    }
+
+    body.workstation-mode .stat .v {
+      font-size: 1rem;
+    }
+
+    body.workstation-mode .workstation-toolbar {
+      margin-bottom: 0;
+      padding: 8px;
+      border-radius: 12px;
+    }
+
+    body.workstation-mode .chart-shell {
+      min-height: 0;
+      height: 100%;
+      padding: 8px;
+      border-radius: 14px;
+    }
+
+    body.workstation-mode canvas {
+      height: 100%;
+      min-height: 360px;
+      border-radius: 10px;
+    }
+
+    body.workstation-mode .outside-legend {
+      margin-top: 0;
+      max-height: 54px;
+      overflow: auto;
+      padding-bottom: 1px;
+    }
+
+    body.workstation-mode .tracking-table-wrap {
+      max-height: 150px;
+      margin-top: 0;
+      border-radius: 12px;
+    }
+
+    body.workstation-mode .layout > section.stack > .card:not(.graph-card) {
+      max-height: 180px;
+      overflow: auto;
+      box-shadow: none;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    body.workstation-mode .data-card {
+      display: none;
+    }
+
+    @media (max-width: 1050px) {
+      body.workstation-mode {
+        overflow: auto;
+      }
+
+      body.workstation-mode header,
+      body.workstation-mode main {
+        position: static;
+        height: auto;
+      }
+
+      body.workstation-mode main {
+        width: min(1480px, calc(100vw - 32px));
+        padding: 14px 0 28px;
+        overflow: visible;
+      }
+
+      body.workstation-mode .layout,
+      body.workstation-mode .layout > section.stack,
+      body.workstation-mode .side,
+      body.workstation-mode .graph-card {
+        height: auto;
+        overflow: visible;
+      }
+
+      body.workstation-mode canvas {
+        height: 520px;
+      }
+    }
+
 
     main {
       width: min(1480px, calc(100vw - 32px));
@@ -771,9 +965,12 @@
     <div class="header-inner">
       <div>
         <h1>Poppe's Diesel Co. OBD CSV Viewer</h1>
-        <div class="subtitle">Offline CSV upload → multiple graph lines → preset themes → editable graph line colors → drag-box zoom + Pico-style rulers together.</div>
+        <div class="subtitle">Offline CSV upload → multi-line graphing → full-screen workspace → drag zoom → scope-style rulers → tracking table → event tools.</div>
       </div>
-      <div class="version">v0.7 rulers + zoom together</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <button id="workspaceBtn" class="header-action" type="button">Full Workspace</button>
+        <div class="version">REV 010 · full-screen workstation</div>
+      </div>
     </div>
   </header>
 
@@ -854,7 +1051,7 @@
         </section>
 
         <section class="card">
-          <h2>4. Pico-Style Rulers</h2>
+          <h2>4. Scope-Style Rulers</h2>
 
           <div class="toggle-row">
             <input id="measureMode" type="checkbox" />
@@ -961,7 +1158,7 @@
           <div class="graph-top">
             <div class="graph-title-block">
               <h2 id="chartTitle">Graph</h2>
-              <div class="graph-subtitle" id="chartSubtitle">Upload a CSV, add one or more data lines, then redraw the graph.</div>
+              <div class="graph-subtitle" id="chartSubtitle">REV 010 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
             </div>
 
             <div class="screen-only" style="min-width:220px;">
@@ -994,6 +1191,7 @@
               <span class="toolbar-chip"><strong>Drag empty graph</strong> to zoom</span>
               <span class="toolbar-chip"><strong>Drag colored ruler tabs</strong> to measure</span>
               <span class="toolbar-chip"><strong>Shift + drag</strong> pans when zoomed</span>
+              <span class="toolbar-chip"><strong>Full Workspace</strong> maximizes graph space</span>
             </div>
             <div class="toolbar-group">
               <label class="small-toggle"><input id="showRulerBubbles" type="checkbox" checked /> Value bubbles</label>
@@ -1091,6 +1289,7 @@
     ];
 
     const els = {
+      workspaceBtn: document.getElementById("workspaceBtn"),
       file: document.getElementById("csvFile"),
       status: document.getElementById("status"),
       filePills: document.getElementById("filePills"),
@@ -1138,6 +1337,7 @@
       themePreset: document.getElementById("themePreset")
     };
 
+    els.workspaceBtn.addEventListener("click", toggleWorkspaceMode);
     els.file.addEventListener("change", handleFile);
     els.addLineBtn.addEventListener("click", addSelectedLine);
     els.drawBtn.addEventListener("click", drawGraph);
@@ -1186,6 +1386,37 @@
     els.themePreset.addEventListener("change", () => {
       applyTheme();
       drawGraph();
+    });
+
+    function toggleWorkspaceMode() {
+      const enable = !document.body.classList.contains("workstation-mode");
+
+      document.body.classList.toggle("workstation-mode", enable);
+      els.workspaceBtn.textContent = enable ? "Exit Workspace" : "Full Workspace";
+
+      if (enable && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {
+          // Browser may block fullscreen. The workstation layout still works.
+        });
+      } else if (!enable && document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+
+      setTimeout(() => {
+        if (parsedData.length) drawGraph();
+        else drawPlaceholder();
+      }, 80);
+    }
+
+    document.addEventListener("fullscreenchange", () => {
+      if (!document.fullscreenElement && document.body.classList.contains("workstation-mode")) {
+        document.body.classList.remove("workstation-mode");
+        els.workspaceBtn.textContent = "Full Workspace";
+        setTimeout(() => {
+          if (parsedData.length) drawGraph();
+          else drawPlaceholder();
+        }, 80);
+      }
     });
 
     function handleFile(event) {
@@ -2160,7 +2391,7 @@
       const trackingRows = buildTrackingRowsHtml();
 
       els.measureReadout.innerHTML =
-        '<div><strong>Pico-Style Ruler Readout</strong></div>' +
+        '<div><strong>Scope-Style Ruler Readout</strong></div>' +
         '<div><span style="color:' + rulerCursors.vA.color + '"><strong>X-A:</strong></span> ' + formatNumber(rulerCursors.vA.value) +
         ' &nbsp; <span style="color:' + rulerCursors.vB.color + '"><strong>X-B:</strong></span> ' + formatNumber(rulerCursors.vB.value) + '</div>' +
         '<div><span style="color:' + rulerCursors.hA.color + '"><strong>Y-A:</strong></span> ' + formatNumber(rulerCursors.hA.value) +
