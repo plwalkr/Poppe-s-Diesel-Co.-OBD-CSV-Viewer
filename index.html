@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer REV 011</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer REV 012</title>
   <style>
     :root {
-      --app-bg: #0b1110;
-      --panel-bg: #111b18;
-      --panel-bg-2: #17241f;
-      --chart-bg: #060b0a;
+      --app-bg: #e9eef2;
+      --panel-bg: #f7fbff;
+      --panel-bg-2: #d9eaf6;
+      --chart-bg: #ffffff;
       --text: #eef5ef;
-      --muted: #aebaae;
-      --line: #2f3d35;
-      --grid: rgba(255,255,255,.14);
-      --accent: #46d7a3;
-      --accent-2: #7fffd0;
+      --muted: rgba(23,48,66,.68);
+      --line: rgba(50,99,130,.20);
+      --grid: rgba(42,95,125,.18);
+      --accent: #3f98c5;
+      --accent-2: #1b6f98;
       --danger: #f56565;
       --warn: #ecc94b;
       --radius: 18px;
@@ -1259,6 +1259,222 @@
         color: black !important;
       }
     }
+  
+    /* REV 012: original light lab-scope presentation theme */
+    body.lab-scope-theme {
+      background: linear-gradient(180deg, #f3f7fa, #e9eef2);
+    }
+
+    body.lab-scope-theme header {
+      background: linear-gradient(180deg, #f7fbff, #dfeaf2);
+      border-bottom-color: rgba(42,95,125,.24);
+      box-shadow: 0 2px 8px rgba(41,75,92,.14);
+    }
+
+    body.lab-scope-theme .card {
+      background: linear-gradient(180deg, #fbfdff, #eef5fa);
+      border-color: rgba(42,95,125,.22);
+      box-shadow: 0 10px 25px rgba(55,82,98,.12);
+    }
+
+    body.lab-scope-theme .scope-ribbon {
+      grid-template-columns: 110px repeat(6, minmax(90px, 1fr)) auto;
+      background: linear-gradient(180deg, #f7fbff, #e8f1f8);
+      border: 1px solid rgba(42,95,125,.20);
+      border-radius: 4px;
+      padding: 6px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.85), 0 3px 10px rgba(55,82,98,.10);
+    }
+
+    body.lab-scope-theme .scope-tile {
+      background: linear-gradient(180deg, #e8f4fb, #cfe5f4);
+      border-color: rgba(64,132,168,.30);
+      border-radius: 3px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+    }
+
+    body.lab-scope-theme .scope-run-tile {
+      background: linear-gradient(180deg, #eefcf0, #d6f6dc);
+      border-color: rgba(55,160,75,.35);
+      color: #176125;
+    }
+
+    body.lab-scope-theme .scope-run-tile .scope-label,
+    body.lab-scope-theme .scope-run-tile .scope-value {
+      color: #176125;
+    }
+
+    body.lab-scope-theme .scope-icon-btn {
+      background: linear-gradient(180deg, #f6fbff, #d8eaf5);
+      color: #1f5874;
+      border-color: rgba(64,132,168,.28);
+      border-radius: 3px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+    }
+
+    body.lab-scope-theme .workstation-toolbar {
+      background: linear-gradient(180deg, #fbfdff, #edf5fa);
+      border-color: rgba(42,95,125,.18);
+      border-radius: 4px;
+    }
+
+    body.lab-scope-theme .toolbar-chip {
+      background: #f6fbff;
+      border-color: rgba(42,95,125,.18);
+      color: rgba(23,48,66,.72);
+    }
+
+    body.lab-scope-theme .chart-shell {
+      background: #ffffff;
+      border-color: rgba(42,95,125,.18);
+      border-radius: 3px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.9), 0 2px 12px rgba(55,82,98,.10);
+    }
+
+    body.lab-scope-theme canvas {
+      background: #ffffff;
+      border-radius: 2px;
+    }
+
+    body.lab-scope-theme .scope-channel-rail {
+      background: linear-gradient(180deg, #f6fbff, #e5f0f8);
+      border-color: rgba(42,95,125,.22);
+      border-radius: 4px;
+    }
+
+    body.lab-scope-theme .scope-channel-card {
+      background: #f9fcff;
+      border-color: rgba(42,95,125,.18);
+      border-left-width: 7px;
+      border-radius: 3px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+    }
+
+    body.lab-scope-theme .floating-rulers-panel {
+      background: rgba(239,248,253,.94);
+      border-color: rgba(64,132,168,.34);
+      border-radius: 3px;
+      box-shadow: 0 8px 20px rgba(55,82,98,.18);
+    }
+
+    body.lab-scope-theme .floating-rulers-title {
+      background: linear-gradient(180deg, #d7ecf8, #c4e2f2);
+      color: #173042;
+      border-bottom-color: rgba(42,95,125,.20);
+    }
+
+    body.lab-scope-theme .floating-rulers-grid div {
+      border-color: rgba(42,95,125,.16);
+    }
+
+    body.lab-scope-theme .scope-dock-panel {
+      background: linear-gradient(180deg, #f9fcff, #edf5fa);
+      border-color: rgba(42,95,125,.22);
+      border-radius: 4px;
+    }
+
+    body.lab-scope-theme .scope-dock-title {
+      background: linear-gradient(180deg, #e3f2fb, #cfe5f4);
+      color: #1b6f98;
+      border-bottom-color: rgba(42,95,125,.18);
+    }
+
+    body.lab-scope-theme .outside-legend-item {
+      background: #f7fbff;
+      border-color: rgba(42,95,125,.18);
+      border-radius: 3px;
+    }
+
+    body.lab-scope-theme .tracking-table-wrap th,
+    body.lab-scope-theme th {
+      background: #d7ecf8;
+      color: #173042;
+    }
+
+    body.lab-scope-theme table,
+    body.lab-scope-theme td,
+    body.lab-scope-theme th {
+      border-color: rgba(42,95,125,.16);
+    }
+
+    body.lab-scope-theme input,
+    body.lab-scope-theme select,
+    body.lab-scope-theme textarea {
+      background: #ffffff;
+      color: #173042;
+      border-color: rgba(42,95,125,.22);
+    }
+
+    body.lab-scope-theme button.secondary {
+      background: linear-gradient(180deg, #f7fbff, #d8eaf5);
+      color: #1b6f98;
+      border-color: rgba(64,132,168,.28);
+    }
+
+    body.lab-scope-theme .version {
+      background: #edf7fc;
+      border-color: rgba(64,132,168,.30);
+      color: #1b6f98;
+    }
+
+    body.lab-scope-theme .header-action {
+      background: linear-gradient(180deg, #f7fbff, #d8eaf5);
+      color: #1b6f98;
+      border-color: rgba(64,132,168,.30);
+    }
+
+    body.workstation-mode.lab-scope-theme header {
+      height: 64px;
+    }
+
+    body.workstation-mode.lab-scope-theme main {
+      top: 64px;
+      padding: 6px;
+    }
+
+    body.workstation-mode.lab-scope-theme .layout {
+      grid-template-columns: 265px minmax(0, 1fr);
+      gap: 6px;
+    }
+
+    body.workstation-mode.lab-scope-theme .side .card {
+      border-radius: 4px;
+      padding: 10px;
+    }
+
+    body.workstation-mode.lab-scope-theme .graph-card {
+      border-radius: 4px;
+      padding: 8px;
+      gap: 6px;
+    }
+
+    body.workstation-mode.lab-scope-theme .graph-top {
+      display: none;
+    }
+
+    body.workstation-mode.lab-scope-theme .stats-grid {
+      display: none;
+    }
+
+    body.workstation-mode.lab-scope-theme .scope-ribbon {
+      margin-bottom: 0;
+      gap: 5px;
+      padding: 5px;
+    }
+
+    body.workstation-mode.lab-scope-theme .workstation-toolbar {
+      padding: 5px 7px;
+    }
+
+    body.workstation-mode.lab-scope-theme .scope-plot-row {
+      grid-template-columns: 86px minmax(0, 1fr);
+      gap: 5px;
+    }
+
+    body.workstation-mode.lab-scope-theme .scope-bottom-dock {
+      gap: 5px;
+    }
+
   </style>
 </head>
 
@@ -1267,11 +1483,11 @@
     <div class="header-inner">
       <div>
         <h1>PoppeScope OBD Workstation</h1>
-        <div class="subtitle">OBD CSV diagnostics · scope-style graphing · draggable rulers · event tracking · report-ready measurements.</div>
+        <div class="subtitle">OBD CSV diagnostics · light lab-scope workspace · draggable rulers · tracking measurements · event tools.</div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <button id="workspaceBtn" class="header-action" type="button">Full Workspace</button>
-        <div class="version">REV 011 · scope workstation</div>
+        <div class="version">REV 012 · lab-scope light theme</div>
       </div>
     </div>
   </header>
@@ -1341,6 +1557,7 @@
           <div class="field">
             <label for="themePreset">Choose a clean viewing theme</label>
             <select id="themePreset">
+              <option value="lab-scope-light" selected>Lab Scope Light</option>
               <option value="diesel-dark">Graphite Diesel</option>
               <option value="shop-light">Shop Light</option>
               <option value="high-contrast">High Contrast</option>
@@ -1460,7 +1677,7 @@
           <div class="graph-top">
             <div class="graph-title-block">
               <h2 id="chartTitle">Graph</h2>
-              <div class="graph-subtitle" id="chartSubtitle">REV 011 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
+              <div class="graph-subtitle" id="chartSubtitle">REV 012 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
             </div>
 
             <div class="screen-only" style="min-width:220px;">
@@ -1491,7 +1708,7 @@
           <div class="scope-ribbon screen-only">
             <div class="scope-tile scope-run-tile">
               <div class="scope-label">Status</div>
-              <div class="scope-value" id="scopeRunState">Loaded</div>
+              <div class="scope-value" id="scopeRunState">No Data</div>
             </div>
             <div class="scope-tile">
               <div class="scope-label">File</div>
@@ -1519,8 +1736,8 @@
             </div>
             <div class="scope-icon-strip">
               <button class="scope-icon-btn" id="scopeResetZoomBtn" type="button">Reset<br>Zoom</button>
-              <button class="scope-icon-btn" id="scopeDetectBtn" type="button">Detect<br>Events</button>
-              <button class="scope-icon-btn" id="scopePrintBtn" type="button">Print<br>PDF</button>
+              <button class="scope-icon-btn" id="scopeDetectBtn" type="button">Auto<br>Detect</button>
+              <button class="scope-icon-btn" id="scopePrintBtn" type="button">Print<br>Report</button>
             </div>
           </div>
 
@@ -3304,6 +3521,18 @@
     }
 
     const themes = {
+      "lab-scope-light": {
+        appBg: "#e9eef2",
+        panelBg: "#f7fbff",
+        panelBg2: "#d9eaf6",
+        chartBg: "#ffffff",
+        text: "#173042",
+        muted: "rgba(23,48,66,.68)",
+        line: "rgba(50,99,130,.20)",
+        grid: "rgba(42,95,125,.18)",
+        accent: "#3f98c5",
+        accent2: "#1b6f98"
+      },
       "diesel-dark": {
         appBg: "#0b1110",
         panelBg: "#111b18",
@@ -3392,6 +3621,8 @@
       root.style.setProperty("--grid", selectedTheme.grid);
       root.style.setProperty("--accent", selectedTheme.accent);
       root.style.setProperty("--accent-2", selectedTheme.accent2);
+
+      document.body.classList.toggle("lab-scope-theme", els.themePreset.value === "lab-scope-light");
     }
 
     function renderTrackingTable() {
