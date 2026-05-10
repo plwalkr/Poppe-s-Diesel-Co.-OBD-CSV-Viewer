@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer REV 014</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer REV 015</title>
   <style>
     :root {
       --app-bg: #e9eef2;
@@ -1260,7 +1260,7 @@
       }
     }
   
-    /* REV 014: original light lab-scope presentation theme */
+    /* REV 015: original light lab-scope presentation theme */
     body.lab-scope-theme {
       background: linear-gradient(180deg, #f3f7fa, #e9eef2);
     }
@@ -1741,7 +1741,7 @@
     }
 
   
-    /* REV 014 Diagnostics: scrolling + activity feedback */
+    /* REV 015 Diagnostics: scrolling + activity feedback */
     .diagnostics-panel {
       height: min(880px, calc(100vh - 24px));
       min-height: 560px;
@@ -1961,6 +1961,229 @@
       }
     }
 
+  
+    /* REV 015: layout freedom, no clipped button text, menu-driven panels */
+    button,
+    .header-action,
+    .scope-icon-btn,
+    .tiny-btn {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: normal;
+      line-height: 1.12;
+      min-height: 34px;
+    }
+
+    .scope-icon-btn {
+      min-width: 46px;
+      width: auto;
+      padding-left: 7px;
+      padding-right: 7px;
+    }
+
+    .header-action {
+      min-width: 92px;
+      text-align: center;
+    }
+
+    .layout-menu {
+      position: fixed;
+      top: 70px;
+      right: 18px;
+      z-index: 180;
+      width: min(360px, calc(100vw - 28px));
+      border: 1px solid color-mix(in srgb, var(--accent-2) 34%, var(--line));
+      background: color-mix(in srgb, var(--panel-bg) 96%, transparent);
+      color: var(--text);
+      border-radius: 14px;
+      box-shadow: 0 22px 65px rgba(0,0,0,.28);
+      padding: 12px;
+      display: none;
+    }
+
+    .layout-menu.open {
+      display: block;
+      animation: toastPop 180ms ease-out;
+    }
+
+    body.lab-scope-theme .layout-menu {
+      background: #f7fbff;
+      color: #173042;
+      border-color: rgba(64,132,168,.30);
+      box-shadow: 0 20px 55px rgba(44,80,100,.22);
+    }
+
+    .layout-menu h3 {
+      margin: 0 0 10px;
+      color: var(--accent-2);
+      font-size: .88rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .layout-menu-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .layout-menu button {
+      width: 100%;
+      text-align: left;
+      border-radius: 10px;
+      padding: 10px 11px;
+      background: color-mix(in srgb, var(--panel-bg-2) 72%, transparent);
+      color: var(--text);
+      border-color: var(--line);
+      font-size: .84rem;
+      min-height: 42px;
+    }
+
+    body.lab-scope-theme .layout-menu button {
+      background: linear-gradient(180deg, #f7fbff, #d8eaf5);
+      color: #173042;
+      border-color: rgba(64,132,168,.22);
+    }
+
+    .layout-menu button.active {
+      border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+      box-shadow: inset 4px 0 0 var(--accent);
+    }
+
+    .layout-menu .hint {
+      color: var(--muted);
+      font-size: .76rem;
+      line-height: 1.3;
+      margin-top: 9px;
+    }
+
+    body.hide-side-panel .layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    body.hide-side-panel .side {
+      display: none !important;
+    }
+
+    body.hide-channel-rail .scope-plot-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    body.hide-channel-rail .scope-channel-rail {
+      display: none !important;
+    }
+
+    body.hide-bottom-dock .scope-bottom-dock {
+      display: none !important;
+    }
+
+    body.focus-graph .workstation-toolbar,
+    body.focus-graph .outside-legend,
+    body.focus-graph .tracking-table-wrap,
+    body.focus-graph .scope-bottom-dock,
+    body.focus-graph .graph-top,
+    body.focus-graph .stats-grid {
+      display: none !important;
+    }
+
+    body.focus-graph .graph-card {
+      grid-template-rows: auto minmax(0, 1fr) !important;
+    }
+
+    body.focus-graph .scope-ribbon {
+      margin-bottom: 0;
+    }
+
+    body.focus-graph .scope-plot-row {
+      min-height: 0;
+      height: 100%;
+    }
+
+    /* Standard view should scroll naturally instead of clipping cards. */
+    body:not(.workstation-mode) {
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    body:not(.workstation-mode) main {
+      overflow: visible;
+    }
+
+    body:not(.workstation-mode) .layout,
+    body:not(.workstation-mode) .stack,
+    body:not(.workstation-mode) .side,
+    body:not(.workstation-mode) .graph-card {
+      overflow: visible;
+      height: auto;
+      max-height: none;
+    }
+
+    body:not(.workstation-mode) .tracking-table-wrap,
+    body:not(.workstation-mode) .table-wrap,
+    body:not(.workstation-mode) .event-list,
+    body:not(.workstation-mode) .range-summary,
+    body:not(.workstation-mode) .diagnostic-log {
+      max-height: none;
+    }
+
+    body:not(.workstation-mode) .scope-channel-rail {
+      max-height: none;
+    }
+
+    body:not(.workstation-mode) .scope-bottom-dock {
+      align-items: start;
+    }
+
+    /* Full workspace keeps the graph maximized but prevents content from being trapped invisibly. */
+    body.workstation-mode .side {
+      scrollbar-gutter: stable;
+    }
+
+    body.workstation-mode .side .card {
+      max-height: none;
+    }
+
+    body.workstation-mode .layout > section.stack > .card:not(.graph-card) {
+      max-height: 220px;
+      overflow: auto;
+      scrollbar-gutter: stable;
+    }
+
+    body.workstation-mode .graph-card {
+      overflow: hidden;
+    }
+
+    body.workstation-mode .scope-channel-rail,
+    body.workstation-mode .outside-legend,
+    body.workstation-mode .tracking-table-wrap,
+    body.workstation-mode .event-list,
+    body.workstation-mode .range-summary {
+      scrollbar-gutter: stable;
+    }
+
+    body.workstation-mode.hide-bottom-dock .graph-card {
+      grid-template-rows: auto auto auto auto minmax(0, 1fr);
+    }
+
+    body.workstation-mode.focus-graph .graph-card {
+      grid-template-rows: auto minmax(0, 1fr) !important;
+    }
+
+    body.workstation-mode.focus-graph .chart-shell {
+      min-height: 0;
+      height: 100%;
+    }
+
+    @media (max-width: 1050px) {
+      .layout-menu {
+        top: 84px;
+        right: 14px;
+      }
+
+      body.hide-side-panel .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
   </style>
 </head>
 
@@ -1973,8 +2196,9 @@
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <button id="workspaceBtn" class="header-action" type="button">Full Workspace</button>
+        <button id="layoutMenuBtn" class="header-action" type="button">Layout</button>
         <button id="diagnosticsBtn" class="header-action" type="button">Diagnostics</button>
-        <div class="version">REV 014 · diagnostics activity console</div>
+        <div class="version">REV 015 · flexible layout controls</div>
       </div>
     </div>
   </header>
@@ -2164,7 +2388,7 @@
           <div class="graph-top">
             <div class="graph-title-block">
               <h2 id="chartTitle">Graph</h2>
-              <div class="graph-subtitle" id="chartSubtitle">REV 014 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
+              <div class="graph-subtitle" id="chartSubtitle">REV 015 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
             </div>
 
             <div class="screen-only" style="min-width:220px;">
@@ -2397,7 +2621,7 @@
 
       <div class="diagnostics-footer">
         <div id="diagnosticsFooterText">Diagnostics idle.</div>
-        <div><strong>REV 014</strong> · PoppeScope OBD Workstation</div>
+        <div><strong>REV 015</strong> · PoppeScope OBD Workstation</div>
       </div>
     </div>
   </div>
@@ -2405,6 +2629,21 @@
 
 
   <div class="diagnostics-toast" id="diagnosticsToast">Diagnostics complete.</div>
+
+
+  <div class="layout-menu" id="layoutMenu">
+    <h3>Layout Controls</h3>
+    <div class="layout-menu-grid">
+      <button id="toggleSidePanelBtn" type="button">Hide Left Tool Panel</button>
+      <button id="toggleChannelRailBtn" type="button">Hide Channel Rail</button>
+      <button id="toggleBottomDockBtn" type="button">Hide Bottom Dock</button>
+      <button id="toggleFocusGraphBtn" type="button">Focus Graph Only</button>
+      <button id="resetLayoutBtn" type="button">Reset Layout</button>
+    </div>
+    <div class="hint">
+      Use these when the screen feels cramped. Full Workspace + Hide Left Tool Panel + Hide Bottom Dock gives you a near full-graph scope view.
+    </div>
+  </div>
 
   <script>
     let headers = [];
@@ -2437,6 +2676,13 @@
 
     const els = {
       workspaceBtn: document.getElementById("workspaceBtn"),
+      layoutMenuBtn: document.getElementById("layoutMenuBtn"),
+      layoutMenu: document.getElementById("layoutMenu"),
+      toggleSidePanelBtn: document.getElementById("toggleSidePanelBtn"),
+      toggleChannelRailBtn: document.getElementById("toggleChannelRailBtn"),
+      toggleBottomDockBtn: document.getElementById("toggleBottomDockBtn"),
+      toggleFocusGraphBtn: document.getElementById("toggleFocusGraphBtn"),
+      resetLayoutBtn: document.getElementById("resetLayoutBtn"),
       diagnosticsBtn: document.getElementById("diagnosticsBtn"),
       diagnosticsBackdrop: document.getElementById("diagnosticsBackdrop"),
       runDiagnosticsBtn: document.getElementById("runDiagnosticsBtn"),
@@ -2519,6 +2765,17 @@
     };
 
     els.workspaceBtn.addEventListener("click", toggleWorkspaceMode);
+    els.layoutMenuBtn.addEventListener("click", toggleLayoutMenu);
+    els.toggleSidePanelBtn.addEventListener("click", () => toggleLayoutClass("hide-side-panel"));
+    els.toggleChannelRailBtn.addEventListener("click", () => toggleLayoutClass("hide-channel-rail"));
+    els.toggleBottomDockBtn.addEventListener("click", () => toggleLayoutClass("hide-bottom-dock"));
+    els.toggleFocusGraphBtn.addEventListener("click", () => toggleLayoutClass("focus-graph"));
+    els.resetLayoutBtn.addEventListener("click", resetLayoutControls);
+    document.addEventListener("click", event => {
+      if (!els.layoutMenu.contains(event.target) && event.target !== els.layoutMenuBtn) {
+        els.layoutMenu.classList.remove("open");
+      }
+    });
     els.diagnosticsBtn.addEventListener("click", openDiagnosticsPanel);
     els.runDiagnosticsBtn.addEventListener("click", runDiagnostics);
     els.copyDiagnosticsBtn.addEventListener("click", copyDiagnosticsReport);
@@ -2587,6 +2844,48 @@
       drawGraph();
     });
 
+    function toggleLayoutMenu(event) {
+      if (event) event.stopPropagation();
+      els.layoutMenu.classList.toggle("open");
+      updateLayoutButtons();
+    }
+
+    function toggleLayoutClass(className) {
+      document.body.classList.toggle(className);
+      updateLayoutButtons();
+      scheduleGraphRedraw();
+    }
+
+    function resetLayoutControls() {
+      ["hide-side-panel", "hide-channel-rail", "hide-bottom-dock", "focus-graph"].forEach(className => {
+        document.body.classList.remove(className);
+      });
+      updateLayoutButtons();
+      scheduleGraphRedraw();
+    }
+
+    function updateLayoutButtons() {
+      const states = [
+        [els.toggleSidePanelBtn, "hide-side-panel", "Show Left Tool Panel", "Hide Left Tool Panel"],
+        [els.toggleChannelRailBtn, "hide-channel-rail", "Show Channel Rail", "Hide Channel Rail"],
+        [els.toggleBottomDockBtn, "hide-bottom-dock", "Show Bottom Dock", "Hide Bottom Dock"],
+        [els.toggleFocusGraphBtn, "focus-graph", "Exit Graph Focus", "Focus Graph Only"]
+      ];
+
+      states.forEach(([button, className, activeText, inactiveText]) => {
+        const active = document.body.classList.contains(className);
+        button.textContent = active ? activeText : inactiveText;
+        button.classList.toggle("active", active);
+      });
+    }
+
+    function scheduleGraphRedraw() {
+      setTimeout(() => {
+        if (parsedData.length) drawGraph();
+        else drawPlaceholder();
+      }, 90);
+    }
+
     function toggleWorkspaceMode() {
       const enable = !document.body.classList.contains("workstation-mode");
 
@@ -2601,20 +2900,14 @@
         document.exitFullscreen().catch(() => {});
       }
 
-      setTimeout(() => {
-        if (parsedData.length) drawGraph();
-        else drawPlaceholder();
-      }, 80);
+      scheduleGraphRedraw();
     }
 
     document.addEventListener("fullscreenchange", () => {
       if (!document.fullscreenElement && document.body.classList.contains("workstation-mode")) {
         document.body.classList.remove("workstation-mode");
         els.workspaceBtn.textContent = "Full Workspace";
-        setTimeout(() => {
-          if (parsedData.length) drawGraph();
-          else drawPlaceholder();
-        }, 80);
+        scheduleGraphRedraw();
       }
     });
 
@@ -2698,7 +2991,7 @@
       const chartHeight = Math.round(canvasRect.height || 0);
 
       return {
-        rev: "REV 014",
+        rev: "REV 015",
         appName: "PoppeScope OBD Workstation",
         timestamp: new Date().toISOString(),
         localTime: new Date().toLocaleString(),
@@ -2735,6 +3028,12 @@
         theme: selectedTheme,
         labScopeTheme: document.body.classList.contains("lab-scope-theme"),
         workspaceMode: document.body.classList.contains("workstation-mode"),
+        layoutStates: {
+          hideSidePanel: document.body.classList.contains("hide-side-panel"),
+          hideChannelRail: document.body.classList.contains("hide-channel-rail"),
+          hideBottomDock: document.body.classList.contains("hide-bottom-dock"),
+          focusGraph: document.body.classList.contains("focus-graph")
+        },
         fullScreen: Boolean(document.fullscreenElement),
         canvasWidth: chartWidth,
         canvasHeight: chartHeight,
@@ -2826,6 +3125,7 @@
         ["Local Time", snapshot.localTime],
         ["Theme", snapshot.theme + (snapshot.labScopeTheme ? " (light scope active)" : "")],
         ["Workspace", snapshot.workspaceMode ? "Full workspace" : "Standard"],
+        ["Layout States", JSON.stringify(snapshot.layoutStates)],
         ["Fullscreen", snapshot.fullScreen ? "Yes" : "No"],
         ["Canvas", snapshot.canvasWidth + " × " + snapshot.canvasHeight],
         ["Viewport", snapshot.viewport.width + " × " + snapshot.viewport.height + " @ DPR " + snapshot.viewport.devicePixelRatio],
@@ -2890,6 +3190,7 @@
       lines.push("- Theme: " + snapshot.theme);
       lines.push("- Lab scope theme active: " + snapshot.labScopeTheme);
       lines.push("- Workspace mode: " + snapshot.workspaceMode);
+      lines.push("- Layout states: " + JSON.stringify(snapshot.layoutStates));
       lines.push("- Fullscreen: " + snapshot.fullScreen);
       lines.push("- Canvas: " + snapshot.canvasWidth + " x " + snapshot.canvasHeight);
       lines.push("- Viewport: " + snapshot.viewport.width + " x " + snapshot.viewport.height + " @ DPR " + snapshot.viewport.devicePixelRatio);
@@ -5207,6 +5508,7 @@
     applyTheme();
     renderSeriesList();
     renderNotesList();
+    updateLayoutButtons();
     renderMeasurement();
     renderEventList();
     renderTrackingTable();
