@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PoppeScope OBD Workstation REV 029E</title>
+  <title>PoppeScope OBD Workstation REV 029F</title>
   <style>
     :root {
       color-scheme: dark;
@@ -1309,7 +1309,7 @@
 
 
 
-    /* REV 029E: hover-pop waveform trace highlighting */
+    /* REV 029F: hover-pop waveform trace highlighting */
     .legend-item.hovered {
       color: var(--text);
       border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-strong));
@@ -1339,6 +1339,139 @@
       box-shadow: 0 0 14px var(--c);
     }
 
+
+    /* REV 029F: measurement cockpit first-class workspace + richer evidence capture */
+    body.rev029-scroll .dock {
+      position: relative;
+      border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+      background:
+        radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 46%),
+        linear-gradient(180deg, color-mix(in srgb, var(--panel) 96%, white 2%), color-mix(in srgb, var(--panel-2) 94%, black 4%));
+    }
+
+    body.rev029-scroll .dock::before {
+      content: "MEASUREMENT COCKPIT";
+      position: absolute;
+      left: 14px;
+      top: -10px;
+      padding: 2px 8px;
+      border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--panel) 96%, black 4%);
+      color: var(--accent);
+      font-size: .64rem;
+      font-weight: 950;
+      letter-spacing: .08em;
+      z-index: 2;
+    }
+
+    body.rev029-scroll .dock-panel {
+      min-width: 0;
+    }
+
+    body.rev029-scroll .rev029-review-space {
+      scroll-margin-top: calc(var(--top-h) + 14px);
+    }
+
+    .rev029-capture {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .rev029-capture::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent 24%);
+      opacity: .45;
+    }
+
+    .rev029-capture-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .rev029-capture-title {
+      margin: 0 0 4px;
+      font-size: .84rem;
+      color: var(--accent-2);
+    }
+
+    .rev029-capture-note {
+      margin-top: 7px;
+      padding: 7px 8px;
+      border: 1px dashed color-mix(in srgb, var(--accent-2) 36%, var(--line));
+      border-radius: 9px;
+      color: var(--muted);
+      background: color-mix(in srgb, var(--canvas) 36%, transparent);
+      position: relative;
+      z-index: 1;
+    }
+
+    .rev029-capture-table {
+      width: 100%;
+      margin-top: 8px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+      background: color-mix(in srgb, var(--panel) 72%, transparent);
+    }
+
+    .rev029-capture-table table {
+      min-width: 760px;
+      font-size: .70rem;
+    }
+
+    .rev029-capture-table th,
+    .rev029-capture-table td {
+      padding: 5px 6px;
+    }
+
+    .rev029-capture-actions {
+      display: flex;
+      gap: 6px;
+      flex: 0 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .rev029-capture-actions button {
+      min-height: 28px;
+      padding: 5px 8px;
+      font-size: .70rem;
+    }
+
+    .rev029-event-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 5px;
+      margin-right: 5px;
+      padding: 4px 7px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: color-mix(in srgb, var(--panel) 70%, transparent);
+      font-size: .68rem;
+      font-family: var(--mono);
+    }
+
+    @media (max-width: 1280px) {
+      body.rev029-scroll .dock {
+        grid-template-columns: 1fr !important;
+      }
+      body.rev029-scroll .dock-panel:last-child {
+        display: block !important;
+      }
+    }
+
 </style>
 </head>
 <body class="theme-dark">
@@ -1346,8 +1479,8 @@
     <div class="brand">
       <div class="brand-mark">〰</div>
       <div>
-        <h1>PoppeScope OBD Workstation <span class="muted">REV 029E</span></h1>
-        <p>Static CSV waveform review · screen-fit graph cockpit · draggable rulers · hover-pop traces · easy PID toggles · auto-fit axes</p>
+        <h1>PoppeScope OBD Workstation <span class="muted">REV 029F</span></h1>
+        <p>Static CSV waveform review · screen-fit graph cockpit · draggable rulers · measurement cockpit · hover-pop traces · easy PID toggles · auto-fit axes</p>
       </div>
     </div>
     <div class="commands">
@@ -1661,7 +1794,7 @@
         <div class="report-box" id="reportText">No report generated yet.</div>
       </div>
       <div class="modal-foot">
-        <span>PoppeScope REV 029E · Static CSV waveform review workstation</span>
+        <span>PoppeScope REV 029F · Static CSV waveform review workstation</span>
         <span id="modalHealthFoot">No data</span>
       </div>
     </div>
@@ -3531,7 +3664,7 @@
     function buildReport() {
       const lines = [];
       lines.push("POPPE SCOPE OBD WORKSTATION - DIAGNOSTIC REVIEW REPORT");
-      lines.push("Revision: REV 029E");
+      lines.push("Revision: REV 029F");
       lines.push("Generated: " + new Date().toLocaleString() + " (" + new Date().toISOString() + ")");
       lines.push("Mode: Static post-capture CSV review. No live capture, no sensor communication, no hardware connection.");
       lines.push("");
@@ -3623,9 +3756,7 @@
       lines.push("REV 029 CAPTURED MEASUREMENTS");
       if (state.rev029 && state.rev029.captures.length) {
         state.rev029.captures.forEach(capture => {
-          lines.push(`Capture #${capture.id} - ${capture.created}`);
-          lines.push(`- A: ${formatNum(capture.a)} ${state.xUnit || ""}; B: ${formatNum(capture.b)} ${state.xUnit || ""}; Δ ${formatNum(capture.deltaX)} ${state.xUnit || ""}`);
-          capture.rows.forEach(row => lines.push(`  - ${row.channel}: A ${formatNum(row.a)}, B ${formatNum(row.b)}, Δ ${formatSigned(row.delta)} ${row.unit || ""}`));
+          lines.push(captureToText(capture));
         });
       } else {
         lines.push("- No captured measurements.");
@@ -3694,7 +3825,7 @@
 
     function downloadJsonSummary() {
       const payload = {
-        revision: "REV 029E",
+        revision: "REV 029F",
         generated: new Date().toISOString(),
         fileName: state.fileName,
         rows: state.rows.length,
@@ -3707,7 +3838,8 @@
         recommendations: state.recommendations,
         channels: state.channels,
         cursors: state.cursors,
-        notes: state.notes
+        notes: state.notes,
+        captures: state.rev029 ? state.rev029.captures : []
       };
       downloadText(JSON.stringify(payload, null, 2), makeSafeFileName("PoppeScope_Summary", "json"), "application/json");
     }
@@ -4477,30 +4609,109 @@
     function captureRev029Measurement() {
       if (!state.rows.length) { showToast("Load a CSV before capturing measurements.", "warn"); return; }
       if (state.cursors.a === null || state.cursors.b === null) ensureRulersInitialized(true);
-      const rows = rev029CursorRows();
+      const minX = state.cursors.a !== null && state.cursors.b !== null ? Math.min(state.cursors.a, state.cursors.b) : getVisibleXRange().min;
+      const maxX = state.cursors.a !== null && state.cursors.b !== null ? Math.max(state.cursors.a, state.cursors.b) : getVisibleXRange().max;
+      const rows = rev029CursorRows().map(row => {
+        const vals = getChannelWindowValues(row.channel, minX, maxX);
+        const st = calcStats(vals);
+        return {
+          ...row,
+          min: st.min,
+          avg: st.avg,
+          max: st.max,
+          samples: st.count
+        };
+      });
+      const defaultName = `Event ${state.rev029.captures.length + 1}`;
+      const eventName = (prompt("Name this captured event:", defaultName) || defaultName).trim() || defaultName;
+      const note = (prompt("Optional note for this capture:", "") || "").trim();
       const capture = {
         id: state.rev029.captures.length + 1,
+        uid: makeId(),
+        title: eventName,
+        note,
         created: new Date().toLocaleString(),
         a: state.cursors.a,
         b: state.cursors.b,
-        deltaX: state.cursors.a !== null && state.cursors.b !== null ? Math.abs(state.cursors.b - state.cursors.a) : null,
+        minX,
+        maxX,
+        deltaX: state.cursors.a !== null && state.cursors.b !== null ? Math.abs(state.cursors.b - state.cursors.a) : Math.abs(maxX - minX),
         rows,
+        visibleChannels: state.channels.filter(c => c.visible).map(c => c.name),
         preset: state.rev029.preset || "Custom"
       };
       state.rev029.captures.push(capture);
       renderRev029Workspace();
-      showToast("Measurement captured.", "good");
+      state.lastReport = buildReport();
+      el.reportText.textContent = state.lastReport;
+      showToast(`Captured: ${eventName}`, "good");
     }
 
     function renderRev029Captures() {
       if (!el.rev029CapturesList) return;
       if (!state.rev029.captures.length) { el.rev029CapturesList.innerHTML = '<div class="hint">No captured measurements yet.</div>'; return; }
       el.rev029CapturesList.innerHTML = state.rev029.captures.map(c => `
-        <div class="rev029-capture">
-          <h4>Capture #${c.id} · ${escapeHtml(c.created)}</h4>
-          <div class="tiny">Preset/Layout: ${escapeHtml(c.preset || "Custom")} · A ${formatNum(c.a)} · B ${formatNum(c.b)} · Δ ${formatNum(c.deltaX)} ${escapeHtml(state.xUnit || "")}</div>
-          ${c.rows.slice(0, 8).map(r => `<div>${escapeHtml(r.channel)}: ${formatNum(r.a)} → ${formatNum(r.b)} ${escapeHtml(r.unit || "")}, Δ ${formatSigned(r.delta)}</div>`).join("")}
+        <div class="rev029-capture" data-capture="${escapeAttr(c.uid || c.id)}">
+          <div class="rev029-capture-head">
+            <div>
+              <h4 class="rev029-capture-title">${escapeHtml(c.title || ("Capture #" + c.id))}</h4>
+              <div class="tiny">${escapeHtml(c.created)} · Preset/Layout: ${escapeHtml(c.preset || "Custom")}</div>
+              <span class="rev029-event-chip">A ${formatNum(c.a)} ${escapeHtml(state.xUnit || "")}</span>
+              <span class="rev029-event-chip">B ${formatNum(c.b)} ${escapeHtml(state.xUnit || "")}</span>
+              <span class="rev029-event-chip">Δ ${formatNum(c.deltaX)} ${escapeHtml(state.xUnit || "")}</span>
+              <span class="rev029-event-chip">PIDs ${formatInt((c.visibleChannels || c.rows || []).length)}</span>
+            </div>
+            <div class="rev029-capture-actions">
+              <button class="small" data-action="copy-capture">Copy</button>
+              <button class="small" data-action="delete-capture">Delete</button>
+            </div>
+          </div>
+          ${c.note ? `<div class="rev029-capture-note">${escapeHtml(c.note)}</div>` : ""}
+          <div class="rev029-capture-table">
+            <table>
+              <thead><tr><th>Channel</th><th>A</th><th>B</th><th>Δ</th><th>Min</th><th>Avg</th><th>Max</th><th>Samples</th></tr></thead>
+              <tbody>${(c.rows || []).map(r => `<tr><td>${escapeHtml(r.channel)}</td><td>${formatNum(r.a)}</td><td>${formatNum(r.b)}</td><td>${formatSigned(r.delta)}</td><td>${formatNum(r.min)}</td><td>${formatNum(r.avg)}</td><td>${formatNum(r.max)}</td><td>${formatInt(r.samples)}</td></tr>`).join("")}</tbody>
+            </table>
+          </div>
         </div>`).join("");
+      el.rev029CapturesList.querySelectorAll(".rev029-capture").forEach(card => {
+        const uid = card.dataset.capture;
+        const capture = state.rev029.captures.find(c => String(c.uid || c.id) === String(uid));
+        if (!capture) return;
+        const copyBtn = card.querySelector('[data-action="copy-capture"]');
+        const deleteBtn = card.querySelector('[data-action="delete-capture"]');
+        if (copyBtn) copyBtn.addEventListener("click", () => copyCaptureText(capture));
+        if (deleteBtn) deleteBtn.addEventListener("click", () => {
+          state.rev029.captures = state.rev029.captures.filter(c => String(c.uid || c.id) !== String(uid));
+          renderRev029Workspace();
+          state.lastReport = buildReport();
+          el.reportText.textContent = state.lastReport;
+          showToast("Capture deleted.", "warn");
+        });
+      });
+    }
+
+    function captureToText(capture) {
+      const lines = [];
+      lines.push(`${capture.title || ("Capture #" + capture.id)} - ${capture.created}`);
+      lines.push(`Preset/Layout: ${capture.preset || "Custom"}`);
+      lines.push(`A: ${formatNum(capture.a)} ${state.xUnit || ""}; B: ${formatNum(capture.b)} ${state.xUnit || ""}; Δ: ${formatNum(capture.deltaX)} ${state.xUnit || ""}`);
+      if (capture.note) lines.push(`Note: ${capture.note}`);
+      (capture.rows || []).forEach(row => {
+        lines.push(`- ${row.channel}: A ${formatNum(row.a)}, B ${formatNum(row.b)}, Δ ${formatSigned(row.delta)} ${row.unit || ""}; window min/avg/max ${formatNum(row.min)} / ${formatNum(row.avg)} / ${formatNum(row.max)}; samples ${formatInt(row.samples)}`);
+      });
+      return lines.join("\n");
+    }
+
+    async function copyCaptureText(capture) {
+      const text = captureToText(capture);
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(text);
+        else fallbackCopyText(text);
+        showToast("Capture copied to clipboard.", "good");
+      } catch (error) {
+        showToast("Copy failed. Browser blocked clipboard access.", "bad");
+      }
     }
 
 
