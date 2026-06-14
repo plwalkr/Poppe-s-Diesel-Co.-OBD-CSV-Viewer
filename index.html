@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PoppeScope OBD Workstation REV 029D</title>
+  <title>PoppeScope OBD Workstation REV 029E</title>
   <style>
     :root {
       color-scheme: dark;
@@ -1048,7 +1048,7 @@
     }
 
 
-    /* REV 029D: screen-fit graph cockpit + full-page measurement scroll
+    /* REV 029D/029E: screen-fit graph cockpit + full-page measurement scroll
        Goal: keep the graph workstation fitting on the first screen like REV 028,
        then put the larger cursor/window/capture sections below it in normal page flow. */
     body.rev029-scroll {
@@ -1170,7 +1170,7 @@
 
   
 
-    /* REV 029D: smoother ruler hit zones, view buttons, and PID quick toggles */
+    /* REV 029D/029E: smoother ruler hit zones, view buttons, and PID quick toggles */
     .commands button.view-active,
     .wave-tools button.view-active,
     .channel-quick-actions button.view-active {
@@ -1307,6 +1307,38 @@
       }
     }
 
+
+
+    /* REV 029E: hover-pop waveform trace highlighting */
+    .legend-item.hovered {
+      color: var(--text);
+      border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-strong));
+      background: color-mix(in srgb, var(--panel-3) 76%, transparent);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-2) 14%, transparent), 0 0 18px color-mix(in srgb, var(--accent-2) 14%, transparent);
+      transform: translateY(-1px);
+    }
+
+    .legend-item.hovered .legend-line {
+      height: 6px;
+      box-shadow: 0 0 16px var(--c);
+    }
+
+    .hover-row.hovered {
+      color: var(--text);
+      font-weight: 900;
+      background: color-mix(in srgb, var(--panel-3) 56%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent-2) 32%, var(--line));
+      border-radius: 8px;
+      padding: 3px 5px;
+      margin-left: -5px;
+      margin-right: -5px;
+    }
+
+    .hover-row.hovered .dot {
+      transform: scale(1.28);
+      box-shadow: 0 0 14px var(--c);
+    }
+
 </style>
 </head>
 <body class="theme-dark">
@@ -1314,8 +1346,8 @@
     <div class="brand">
       <div class="brand-mark">〰</div>
       <div>
-        <h1>PoppeScope OBD Workstation <span class="muted">REV 029D</span></h1>
-        <p>Static CSV waveform review · screen-fit graph cockpit · draggable rulers · easy PID toggles · auto-fit axes</p>
+        <h1>PoppeScope OBD Workstation <span class="muted">REV 029E</span></h1>
+        <p>Static CSV waveform review · screen-fit graph cockpit · draggable rulers · hover-pop traces · easy PID toggles · auto-fit axes</p>
       </div>
     </div>
     <div class="commands">
@@ -1629,7 +1661,7 @@
         <div class="report-box" id="reportText">No report generated yet.</div>
       </div>
       <div class="modal-foot">
-        <span>PoppeScope REV 029D · Static CSV waveform review workstation</span>
+        <span>PoppeScope REV 029E · Static CSV waveform review workstation</span>
         <span id="modalHealthFoot">No data</span>
       </div>
     </div>
@@ -1645,6 +1677,8 @@
     const LARGE_FILE_DRAW_LIMIT = 900000;
     const RULER_HIT_RADIUS = 22;
     const MARKER_HIT_RADIUS = 20;
+    const TRACE_HOVER_HIT_RADIUS = 12;
+    const TRACE_HOVER_SAMPLE_PIXEL_STEP = 5;
 
     const state = {
       fileName: "",
@@ -1670,6 +1704,7 @@
       plot: null,
       renderCache: [],
       hover: null,
+      hoverTrace: null,
       cursors: { a: null, b: null, yA: null, yB: null, target: "a", dragging: null, show: true, snap: true },
       drag: null,
       noteMode: false,
@@ -2562,7 +2597,11 @@
 
     function renderLegend() {
       const visible = state.channels.filter(c => c.visible);
-      el.legendStrip.innerHTML = visible.length ? visible.map(c => `<div class="legend-item"><span class="legend-line" style="--c:${escapeAttr(c.color)}"></span><span>${escapeHtml(c.name)}${c.unit ? " · " + escapeHtml(c.unit) : ""}</span></div>`).join("") : `<div class="hint">No channels visible.</div>`;
+      const hotName = state.hoverTrace && state.hoverTrace.channelName;
+      el.legendStrip.innerHTML = visible.length ? visible.map(c => {
+        const isHot = hotName === c.name;
+        return `<div class="legend-item ${isHot ? "hovered" : ""}"><span class="legend-line" style="--c:${escapeAttr(c.color)}"></span><span>${escapeHtml(c.name)}${c.unit ? " · " + escapeHtml(c.unit) : ""}</span></div>`;
+      }).join("") : `<div class="hint">No channels visible.</div>`;
     }
 
     function renderNotes() {
@@ -2870,7 +2909,12 @@
       drawAxes(ctx, plot, xRange, yRange);
       drawNotes(ctx, plot, xRange, yRange);
 
-      for (const s of series) drawSeries(ctx, plot, xRange, yRange, s);
+      const hoveredSeries = state.hoverTrace ? series.find(s => s.channel.name === state.hoverTrace.channelName) : null;
+      for (const s of series) {
+        if (hoveredSeries && s.channel.name === hoveredSeries.channel.name) continue;
+        drawSeries(ctx, plot, xRange, yRange, s, false, !!hoveredSeries);
+      }
+      if (hoveredSeries) drawSeries(ctx, plot, xRange, yRange, hoveredSeries, true, false);
       drawCursors(ctx, plot, xRange, yRange);
       drawHoverCrosshair(ctx, plot, xRange, yRange);
       if (state.drag && state.drag.kind === "zoom") drawZoomBox(ctx, state.drag.start, state.drag.current);
@@ -2982,13 +3026,16 @@
       ctx.restore();
     }
 
-    function drawSeries(ctx, plot, xRange, yRange, series) {
+    function drawSeries(ctx, plot, xRange, yRange, series, isHovered = false, dimmed = false) {
       const pts = downsampleForDraw(series.points, plot.width);
       ctx.save();
+      ctx.globalAlpha = dimmed ? .54 : 1;
       ctx.strokeStyle = series.channel.color;
-      ctx.lineWidth = 1.7;
-      ctx.shadowColor = hexToRgba(series.channel.color, .22);
-      ctx.shadowBlur = 6;
+      ctx.lineWidth = isHovered ? 4.2 : 1.7;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.shadowColor = hexToRgba(series.channel.color, isHovered ? .62 : .22);
+      ctx.shadowBlur = isHovered ? 18 : 6;
       ctx.beginPath();
       pts.forEach((p, i) => {
         const sx = dataToScreenX(p.x, plot, xRange);
@@ -3153,11 +3200,12 @@
         }
         drawGraph(); return;
       }
-      if (!isInsidePlotPoint(pt, state.plot)) { el.hoverTip.style.display = "none"; state.hover = null; setCanvasCursor("normal"); drawGraph(); return; }
+      if (!isInsidePlotPoint(pt, state.plot)) { el.hoverTip.style.display = "none"; state.hover = null; state.hoverTrace = null; setCanvasCursor("normal"); renderLegend(); drawGraph(); return; }
       setCanvasCursor(getCanvasHoverMode(pt));
       const x = screenToDataX(pt.x, state.plot, xRange);
       const y = screenToDataY(pt.y, state.plot, yRange);
       state.hover = { x, y, screen: pt };
+      updateHoveredTrace(pt);
       renderHoverTip(pt, x);
       drawGraph();
     }
@@ -3205,14 +3253,9 @@
     function handleCanvasUp(event) {
       if (shouldIgnorePointer(event)) return;
       releaseCanvasPointer(event);
-      const wasDraggingMarker = !!(state.rev029 && state.rev029.dragMarkerId);
       if (state.rev029) state.rev029.dragMarkerId = null;
       if (state.cursors.dragging) { state.cursors.dragging = null; setCanvasCursor(getCanvasHoverMode(getCanvasPoint(event))); drawGraph(); renderDock(); return; }
-      if (!state.drag) {
-        if (wasDraggingMarker) { drawGraph(); renderDock(); }
-        setCanvasCursor(getCanvasHoverMode(getCanvasPoint(event)));
-        return;
-      }
+      if (!state.drag) return;
       const drag = state.drag;
       state.drag = null;
       if (drag.kind === "zoom") {
@@ -3288,6 +3331,103 @@
       drawGraph(); renderDock();
     }
 
+    function updateHoveredTrace(pt) {
+      if (!pt || !state.rows.length) { state.hoverTrace = null; return null; }
+      if (state.rev029 && state.rev029.enabled && state.rev029.layoutCache) {
+        state.hoverTrace = findHoveredTraceRev029(pt);
+      } else {
+        const xRange = getVisibleXRange();
+        const yRange = state.fullYRange || getVisibleYRangeEstimate();
+        state.hoverTrace = findHoveredTraceBasic(pt, state.plot, xRange, yRange);
+      }
+      return state.hoverTrace;
+    }
+
+    function findHoveredTraceBasic(pt, plot, xRange, yRange) {
+      if (!plot || !isInsidePlotPoint(pt, plot)) return null;
+      let best = null;
+      state.channels.filter(c => c.visible).forEach(ch => {
+        const series = makeSeries(ch, xRange);
+        const hit = traceDistanceToPoint(series.points, pt, plot, xRange, yRange, dataToScreenY);
+        if (hit && (!best || hit.distance < best.distance)) {
+          best = { channelName: ch.name, channelId: ch.id, color: ch.color, unit: ch.unit || "", distance: hit.distance, value: hit.value, x: hit.x, y: hit.y };
+        }
+      });
+      return best && best.distance <= TRACE_HOVER_HIT_RADIUS ? best : null;
+    }
+
+    function findHoveredTraceRev029(pt) {
+      const layout = state.rev029.layoutCache;
+      if (!layout) return null;
+      const xRange = getVisibleXRange();
+      let best = null;
+      for (const panel of layout.panels || []) {
+        const plot = panel.plot;
+        if (!plot || !isInsidePlotPoint(pt, plot)) continue;
+        for (const name of panel.channelNames || []) {
+          const ch = state.channels.find(c => c.name === name && c.visible);
+          if (!ch) continue;
+          const axis = layout.axes[ch.rev029AxisId] || state.rev029.axes[ch.rev029AxisId];
+          if (!axis) continue;
+          const series = makeSeries(ch, xRange);
+          const yMap = (value, localPlot, localRange) => rev029ValueToY(value, axis, localPlot);
+          const hit = traceDistanceToPoint(series.points, pt, plot, xRange, axis, yMap);
+          if (hit && (!best || hit.distance < best.distance)) {
+            best = { channelName: ch.name, channelId: ch.id, panelId: panel.id, axisId: axis.id, color: ch.color, unit: ch.unit || axis.unit || "", distance: hit.distance, value: hit.value, x: hit.x, y: hit.y };
+          }
+        }
+      }
+      return best && best.distance <= TRACE_HOVER_HIT_RADIUS ? best : null;
+    }
+
+    function traceDistanceToPoint(points, pt, plot, xRange, yRange, yMapper) {
+      if (!points || points.length < 2) return null;
+      const sampleEvery = Math.max(1, Math.floor(points.length / Math.max(80, Math.floor(plot.width / TRACE_HOVER_SAMPLE_PIXEL_STEP))));
+      let prev = null;
+      let best = null;
+      for (let i = 0; i < points.length; i += sampleEvery) {
+        const p = points[i];
+        const current = {
+          sx: dataToScreenX(p.x, plot, xRange),
+          sy: yMapper(p.y, plot, yRange),
+          x: p.x,
+          y: p.y
+        };
+        if (prev) {
+          const hit = distanceToSegmentWithValue(pt, prev, current);
+          if (!best || hit.distance < best.distance) best = hit;
+        }
+        prev = current;
+      }
+      const last = points[points.length - 1];
+      if (last && prev && prev.x !== last.x) {
+        const end = { sx: dataToScreenX(last.x, plot, xRange), sy: yMapper(last.y, plot, yRange), x: last.x, y: last.y };
+        const hit = distanceToSegmentWithValue(pt, prev, end);
+        if (!best || hit.distance < best.distance) best = hit;
+      }
+      return best;
+    }
+
+    function distanceToSegmentWithValue(pt, a, b) {
+      const vx = b.sx - a.sx;
+      const vy = b.sy - a.sy;
+      const len2 = vx * vx + vy * vy;
+      const rawT = len2 ? ((pt.x - a.sx) * vx + (pt.y - a.sy) * vy) / len2 : 0;
+      const t = clamp(rawT, 0, 1);
+      const sx = a.sx + vx * t;
+      const sy = a.sy + vy * t;
+      const dx = pt.x - sx;
+      const dy = pt.y - sy;
+      return {
+        distance: Math.sqrt(dx * dx + dy * dy),
+        screenX: sx,
+        screenY: sy,
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+        value: a.y + (b.y - a.y) * t
+      };
+    }
+
     function renderHoverTip(pt, x) {
       if (state.rev029 && state.rev029.enabled && state.rev029.layoutCache) {
         renderHoverTipRev029(pt);
@@ -3295,11 +3435,15 @@
       }
       const visible = state.channels.filter(c => c.visible).slice(0, 10);
       if (!visible.length) { el.hoverTip.style.display = "none"; return; }
-      const rows = visible.map(ch => {
-        const v = interpolateChannel(ch.name, x);
-        return `<div class="hover-row"><span class="dot" style="--c:${escapeAttr(ch.color)}"></span><span>${escapeHtml(ch.name)}</span><b>${formatNum(v)} ${escapeHtml(ch.unit || "")}</b></div>`;
+      const hotName = state.hoverTrace && state.hoverTrace.channelName;
+      const ordered = [...visible].sort((a, b) => (b.name === hotName) - (a.name === hotName));
+      const rows = ordered.map(ch => {
+        const isHot = hotName === ch.name;
+        const v = isHot && Number.isFinite(state.hoverTrace.value) ? state.hoverTrace.value : interpolateChannel(ch.name, x);
+        return `<div class="hover-row ${isHot ? "hovered" : ""}"><span class="dot" style="--c:${escapeAttr(ch.color)}"></span><span>${escapeHtml(ch.name)}</span><b>${formatNum(v)} ${escapeHtml(ch.unit || "")}</b></div>`;
       }).join("");
-      el.hoverTip.innerHTML = `<div class="tip-title">X ${formatNum(x)} ${escapeHtml(state.xUnit || "")}</div>${rows}`;
+      const title = hotName ? `${escapeHtml(hotName)} · X ${formatNum(x)} ${escapeHtml(state.xUnit || "")}` : `X ${formatNum(x)} ${escapeHtml(state.xUnit || "")}`;
+      el.hoverTip.innerHTML = `<div class="tip-title">${title}</div>${rows}`;
       const shellRect = el.canvasShell.getBoundingClientRect();
       let left = pt.x + 14;
       let top = pt.y + 14;
@@ -3387,7 +3531,7 @@
     function buildReport() {
       const lines = [];
       lines.push("POPPE SCOPE OBD WORKSTATION - DIAGNOSTIC REVIEW REPORT");
-      lines.push("Revision: REV 029D");
+      lines.push("Revision: REV 029E");
       lines.push("Generated: " + new Date().toLocaleString() + " (" + new Date().toISOString() + ")");
       lines.push("Mode: Static post-capture CSV review. No live capture, no sensor communication, no hardware connection.");
       lines.push("");
@@ -3550,7 +3694,7 @@
 
     function downloadJsonSummary() {
       const payload = {
-        revision: "REV 029D",
+        revision: "REV 029E",
         generated: new Date().toISOString(),
         fileName: state.fileName,
         rows: state.rows.length,
@@ -4023,7 +4167,11 @@
 
     function drawRev029Series(ctx, panel, axes, plot, xRange) {
       ctx.save();
-      panel.channelNames.forEach(name => {
+      const hotName = state.hoverTrace && state.hoverTrace.panelId === panel.id ? state.hoverTrace.channelName : null;
+      const names = [...panel.channelNames];
+      const normalNames = names.filter(name => name !== hotName);
+      const hotNames = names.filter(name => name === hotName);
+      const drawOne = (name, isHovered, dimmed) => {
         const ch = state.channels.find(c => c.name === name);
         if (!ch || !ch.visible) return;
         const axis = axes[ch.rev029AxisId] || state.rev029.axes[ch.rev029AxisId];
@@ -4031,10 +4179,13 @@
         const series = makeSeries(ch, xRange);
         const pts = downsampleForDraw(series.points, plot.width);
         if (pts.length < 2) return;
+        ctx.globalAlpha = dimmed ? .54 : 1;
         ctx.strokeStyle = ch.color;
-        ctx.lineWidth = 1.8;
-        ctx.shadowColor = hexToRgba(ch.color, .20);
-        ctx.shadowBlur = 4;
+        ctx.lineWidth = isHovered ? 4.4 : 1.8;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.shadowColor = hexToRgba(ch.color, isHovered ? .64 : .20);
+        ctx.shadowBlur = isHovered ? 19 : 4;
         ctx.beginPath();
         pts.forEach((p, i) => {
           const sx = dataToScreenX(p.x, plot, xRange);
@@ -4043,16 +4194,19 @@
         });
         ctx.stroke();
         ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
         const last = pts[pts.length - 1];
         if (last) {
           ctx.fillStyle = ch.color;
-          ctx.font = "10px " + cssVar("--mono", "monospace");
+          ctx.font = `${isHovered ? "800" : "400"} 10px ` + cssVar("--mono", "monospace");
           ctx.textAlign = "right";
           ctx.textBaseline = "middle";
           const y = clamp(rev029ValueToY(last.y, axis, plot), plot.top + 8, plot.bottom - 8);
-          ctx.fillText(ch.name.slice(0, 34), plot.right - 6, y);
+          ctx.fillText((isHovered ? "▶ " : "") + ch.name.slice(0, 32), plot.right - 6, y);
         }
-      });
+      };
+      normalNames.forEach(name => drawOne(name, false, !!hotName));
+      hotNames.forEach(name => drawOne(name, true, false));
       ctx.restore();
     }
 
@@ -4212,12 +4366,16 @@
       const panel = layout.panels.find(p => p.plot && isInsidePlotPoint(pt, p.plot));
       if (!panel) { el.hoverTip.style.display = "none"; return; }
       const x = screenToDataX(pt.x, panel.plot, getVisibleXRange());
-      const rows = panel.channelNames.map(name => state.channels.find(c => c.name === name)).filter(ch => ch && ch.visible).slice(0, 8).map(ch => {
+      const hotName = state.hoverTrace && state.hoverTrace.panelId === panel.id ? state.hoverTrace.channelName : null;
+      const ordered = panel.channelNames.map(name => state.channels.find(c => c.name === name)).filter(ch => ch && ch.visible).sort((a, b) => (b.name === hotName) - (a.name === hotName)).slice(0, 8);
+      const rows = ordered.map(ch => {
         const axis = layout.axes[ch.rev029AxisId] || state.rev029.axes[ch.rev029AxisId] || {};
-        const v = interpolateChannel(ch.name, x);
-        return `<div class="hover-row"><span class="dot" style="--c:${escapeAttr(ch.color)}"></span><span>${escapeHtml(ch.name)}</span><b>${formatNum(v)} ${escapeHtml(ch.unit || axis.unit || "")}</b></div>`;
+        const isHot = hotName === ch.name;
+        const v = isHot && Number.isFinite(state.hoverTrace.value) ? state.hoverTrace.value : interpolateChannel(ch.name, x);
+        return `<div class="hover-row ${isHot ? "hovered" : ""}"><span class="dot" style="--c:${escapeAttr(ch.color)}"></span><span>${escapeHtml(ch.name)}</span><b>${formatNum(v)} ${escapeHtml(ch.unit || axis.unit || "")}</b></div>`;
       }).join("");
-      el.hoverTip.innerHTML = `<div class="tip-title">${escapeHtml(panel.title)}</div><div class="tiny">Time ${formatNum(x)} ${escapeHtml(state.xUnit || "")}</div>${rows}`;
+      const title = hotName ? `${escapeHtml(hotName)} · ${escapeHtml(panel.title)}` : escapeHtml(panel.title);
+      el.hoverTip.innerHTML = `<div class="tip-title">${title}</div><div class="tiny">Time ${formatNum(x)} ${escapeHtml(state.xUnit || "")}</div>${rows}`;
       autoPlaceHoverTip(pt);
       el.hoverTip.style.display = "block";
     }
