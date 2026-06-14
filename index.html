@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PoppeScope OBD Workstation REV 029B</title>
+  <title>PoppeScope OBD Workstation REV 029C</title>
   <style>
     :root {
       color-scheme: dark;
@@ -1048,7 +1048,7 @@
     }
 
 
-    /* REV 029B: screen-fit graph cockpit + full-page measurement scroll
+    /* REV 029C: screen-fit graph cockpit + full-page measurement scroll
        Goal: keep the graph workstation fitting on the first screen like REV 028,
        then put the larger cursor/window/capture sections below it in normal page flow. */
     body.rev029-scroll {
@@ -1168,15 +1168,47 @@
     }
 
 
-  </style>
+  
+
+    /* REV 029C: smoother ruler hit zones, view buttons, and PID quick toggles */
+    .commands button.view-active,
+    .wave-tools button.view-active,
+    .channel-quick-actions button.view-active {
+      border-color: color-mix(in srgb, var(--accent-2) 62%, var(--line-strong));
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-2) 18%, transparent), 0 0 20px color-mix(in srgb, var(--accent-2) 14%, transparent);
+    }
+
+    .channel-quick-actions {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .channel-quick-actions button {
+      min-width: 0;
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+
+    .canvas-shell.ruler-hover-x #waveCanvas { cursor: ew-resize; }
+    .canvas-shell.ruler-hover-y #waveCanvas { cursor: ns-resize; }
+    .canvas-shell.ruler-dragging #waveCanvas { cursor: grabbing; }
+
+    .ruler-readout {
+      transition: border-color .12s ease, box-shadow .12s ease;
+    }
+
+    .ruler-readout.is-hot {
+      border-color: color-mix(in srgb, var(--accent-2) 50%, var(--line));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-2) 12%, transparent);
+    }
+</style>
 </head>
 <body class="theme-dark">
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark">〰</div>
       <div>
-        <h1>PoppeScope OBD Workstation <span class="muted">REV 029B</span></h1>
-        <p>Static CSV waveform review · screen-fit graph cockpit · scrollable measurement workspace</p>
+        <h1>PoppeScope OBD Workstation <span class="muted">REV 029C</span></h1>
+        <p>Static CSV waveform review · screen-fit graph cockpit · draggable rulers · easy PID toggles · auto-fit axes</p>
       </div>
     </div>
     <div class="commands">
@@ -1186,6 +1218,8 @@
       <button id="p051bPresetBtn" class="warn">P051B Preset</button>
       <button id="captureMeasureBtn" class="good">Capture</button>
       <button id="resetViewBtn" class="ghost">Reset View</button>
+      <button id="scopeViewBtn" class="ghost view-active">Scope View</button>
+      <button id="measurementViewBtn" class="ghost optional">Measurements</button>
       <button id="exportReportBtn" class="good">Export Report</button>
       <button id="exportImageBtn" class="ghost optional">Export PNG</button>
       <select id="themeSelect" title="Theme">
@@ -1216,6 +1250,11 @@
               <button id="addAllBtn" class="small" disabled>Add Top Channels</button>
               <button id="toggleAllBtn" class="small" disabled>Toggle All</button>
               <button id="clearChannelsBtn" class="small" disabled>Clear</button>
+            </div>
+            <div class="button-row channel-quick-actions" style="margin-top:8px">
+              <button id="pidAllOnBtn" class="small" disabled>All On</button>
+              <button id="pidAllOffBtn" class="small" disabled>All Off</button>
+              <button id="pidFitAxesBtn" class="small" disabled>Fit Axes</button>
             </div>
           </section>
 
@@ -1483,7 +1522,7 @@
         <div class="report-box" id="reportText">No report generated yet.</div>
       </div>
       <div class="modal-foot">
-        <span>PoppeScope REV 029B · Static CSV waveform review workstation</span>
+        <span>PoppeScope REV 029C · Static CSV waveform review workstation</span>
         <span id="modalHealthFoot">No data</span>
       </div>
     </div>
@@ -1497,6 +1536,8 @@
     const CHANNEL_COLORS = ["#ffe45c", "#26d7ff", "#59ffa9", "#ff6dff", "#ff9d3f", "#4fa3ff", "#ff5d73", "#f8fbff", "#a98bff", "#45f3e6"];
     const MAX_AUTO_CHANNELS = 8;
     const LARGE_FILE_DRAW_LIMIT = 900000;
+    const RULER_HIT_RADIUS = 14;
+    const MARKER_HIT_RADIUS = 14;
 
     const state = {
       fileName: "",
@@ -1552,6 +1593,8 @@
       csvFile: document.getElementById("csvFile"),
       analyzeBtn: document.getElementById("analyzeBtn"),
       resetViewBtn: document.getElementById("resetViewBtn"),
+      scopeViewBtn: document.getElementById("scopeViewBtn"),
+      measurementViewBtn: document.getElementById("measurementViewBtn"),
       exportReportBtn: document.getElementById("exportReportBtn"),
       exportImageBtn: document.getElementById("exportImageBtn"),
       themeSelect: document.getElementById("themeSelect"),
@@ -1563,6 +1606,9 @@
       addAllBtn: document.getElementById("addAllBtn"),
       toggleAllBtn: document.getElementById("toggleAllBtn"),
       clearChannelsBtn: document.getElementById("clearChannelsBtn"),
+      pidAllOnBtn: document.getElementById("pidAllOnBtn"),
+      pidAllOffBtn: document.getElementById("pidAllOffBtn"),
+      pidFitAxesBtn: document.getElementById("pidFitAxesBtn"),
       channelSearch: document.getElementById("channelSearch"),
       channelSelect: document.getElementById("channelSelect"),
       channelColor: document.getElementById("channelColor"),
@@ -1654,6 +1700,7 @@
       bindEvents();
       bindRev029Events();
       drawPlaceholder("Upload a saved CSV capture");
+      if (el.scopeViewBtn) el.scopeViewBtn.classList.add("view-active");
       renderAll();
     }
 
@@ -1661,6 +1708,8 @@
       el.csvFile.addEventListener("change", handleFileUpload);
       el.analyzeBtn.addEventListener("click", runAnalyzeWithPulse);
       el.resetViewBtn.addEventListener("click", resetView);
+      if (el.scopeViewBtn) el.scopeViewBtn.addEventListener("click", () => setGraphScreenMode("scope"));
+      if (el.measurementViewBtn) el.measurementViewBtn.addEventListener("click", () => setGraphScreenMode("measurements"));
       el.exportReportBtn.addEventListener("click", () => { downloadText(buildReport(), makeSafeFileName("PoppeScope_Report", "txt"), "text/plain"); showToast("Diagnostic report exported.", "good"); });
       el.exportImageBtn.addEventListener("click", exportPng);
       el.themeSelect.addEventListener("change", () => setTheme(el.themeSelect.value));
@@ -1674,6 +1723,9 @@
       el.addAllBtn.addEventListener("click", addTopChannels);
       el.toggleAllBtn.addEventListener("click", toggleAllChannels);
       el.clearChannelsBtn.addEventListener("click", () => { state.channels = []; state.hidden.clear(); state.rev029.axes = {}; state.rev029.panels = []; renderAll(); drawGraph(); });
+      if (el.pidAllOnBtn) el.pidAllOnBtn.addEventListener("click", () => setAllPidVisibility(true));
+      if (el.pidAllOffBtn) el.pidAllOffBtn.addEventListener("click", () => setAllPidVisibility(false));
+      if (el.pidFitAxesBtn) el.pidFitAxesBtn.addEventListener("click", () => { rev029FitVisibleAxes(true); drawGraph(); renderRev029Workspace(); showToast("Axes fit to visible PIDs.", "good"); });
       el.channelSearch.addEventListener("input", populateChannelSelect);
       el.addChannelBtn.addEventListener("click", addSelectedChannel);
       el.soloChannelBtn.addEventListener("click", soloSelectedChannel);
@@ -2090,7 +2142,7 @@
     }
 
     function setControlsEnabled(enabled) {
-      [el.xAxisSelect, el.addAllBtn, el.toggleAllBtn, el.clearChannelsBtn, el.channelSearch, el.channelSelect, el.channelColor, el.addChannelBtn, el.soloChannelBtn].filter(Boolean).forEach(control => control.disabled = !enabled);
+      [el.xAxisSelect, el.addAllBtn, el.toggleAllBtn, el.clearChannelsBtn, el.pidAllOnBtn, el.pidAllOffBtn, el.pidFitAxesBtn, el.channelSearch, el.channelSelect, el.channelColor, el.addChannelBtn, el.soloChannelBtn].filter(Boolean).forEach(control => control.disabled = !enabled);
     }
 
     function addTopChannels() {
@@ -2107,6 +2159,7 @@
       });
       populateChannelSelect();
       rev029AssignDefaultsToChannels();
+      if (state.rev029 && state.rev029.enabled) rev029FitVisibleAxes(false);
       renderAll();
       drawGraph();
     }
@@ -2116,6 +2169,7 @@
       if (!name || state.channels.some(c => c.name === name)) return;
       state.channels.push(makeChannel(name, el.channelColor.value || CHANNEL_COLORS[state.channels.length % CHANNEL_COLORS.length]));
       rev029AssignDefaultsToChannels();
+      if (state.rev029 && state.rev029.enabled) rev029FitVisibleAxes(false);
       populateChannelSelect();
       runAnalysis(false);
       renderAll();
@@ -2210,6 +2264,7 @@
     function toggleAllChannels() {
       const anyVisible = state.channels.some(c => c.visible);
       state.channels.forEach(c => c.visible = !anyVisible);
+      if (state.rev029 && state.rev029.enabled) rev029FitVisibleAxes(false);
       runAnalysis(false);
       renderAll();
       drawGraph();
@@ -2297,6 +2352,7 @@
           if (action === "scale") ch.scale = event.target.value;
           if (action === "min") ch.manualMin = event.target.value;
           if (action === "max") ch.manualMax = event.target.value;
+          if (state.rev029 && state.rev029.enabled) rev029FitVisibleAxes(false);
           runAnalysis(false);
           renderChannels();
           renderLegend();
@@ -2307,12 +2363,14 @@
           if (action === "remove") {
             state.channels = state.channels.filter(c => c.id !== id);
             populateChannelSelect();
+            if (state.rev029 && state.rev029.enabled) rev029FitVisibleAxes(false);
             runAnalysis(false);
             renderAll();
             drawGraph();
           }
           if (action === "solo") {
             state.channels.forEach(c => c.visible = c.id === id);
+            if (state.rev029 && state.rev029.enabled) rev029FitVisibleAxes(false);
             runAnalysis(false);
             renderAll();
             drawGraph();
@@ -2544,6 +2602,53 @@
       showToast(state.rev029.graphExpanded ? "Graph enlarged. Double-click the graph header or press Graph Normal to shrink." : "Graph returned to screen-fit size.", "good");
     }
 
+    function setGraphScreenMode(mode) {
+      state.rev029.screenMode = mode;
+      if (mode === "scope") {
+        if (state.rev029.graphExpanded) {
+          state.rev029.graphExpanded = false;
+          document.body.classList.remove("graph-expanded");
+          if (el.graphSizeBtn) el.graphSizeBtn.textContent = "Graph Size";
+        }
+        document.querySelector(".workspace")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        showToast("Scope view restored.", "good");
+      } else if (mode === "measurements") {
+        el.rev029ReviewSpace?.scrollIntoView({ behavior: "smooth", block: "start" });
+        showToast("Measurement workspace opened below the graph.", "good");
+      }
+      if (el.scopeViewBtn) el.scopeViewBtn.classList.toggle("view-active", mode === "scope");
+      if (el.measurementViewBtn) el.measurementViewBtn.classList.toggle("view-active", mode === "measurements");
+      setTimeout(() => { drawGraph(); renderDock(); renderRev029Workspace(); }, 90);
+    }
+
+    function setAllPidVisibility(visible) {
+      if (!state.channels.length) return;
+      state.channels.forEach(ch => ch.visible = !!visible);
+      rev029FitVisibleAxes(false);
+      runAnalysis(false);
+      renderAll();
+      drawGraph();
+      showToast(visible ? "All selected PIDs are on." : "All selected PIDs are off.", visible ? "good" : "warn");
+    }
+
+    function setCanvasCursor(mode) {
+      if (!el.canvasShell || !el.waveCanvas) return;
+      el.canvasShell.classList.toggle("ruler-hover-x", mode === "x");
+      el.canvasShell.classList.toggle("ruler-hover-y", mode === "y");
+      el.canvasShell.classList.toggle("ruler-dragging", mode === "drag");
+      el.waveCanvas.style.cursor = mode === "x" ? "ew-resize" : mode === "y" ? "ns-resize" : mode === "drag" ? "grabbing" : mode === "pan" ? "grab" : mode === "zoom" ? "zoom-in" : "crosshair";
+      if (el.rulerReadout) el.rulerReadout.classList.toggle("is-hot", mode === "x" || mode === "y" || mode === "drag");
+    }
+
+    function getCanvasHoverMode(pt) {
+      if (!state.plot || !state.rows.length || !isInsidePlotPoint(pt, state.plot)) return "normal";
+      if (hitRev029Marker(pt)) return "y";
+      const cursorHit = hitCursor(pt, getVisibleXRange());
+      if (cursorHit === "a" || cursorHit === "b") return "x";
+      if (cursorHit === "yA" || cursorHit === "yB") return "y";
+      return "normal";
+    }
+
     function drawGraph() {
       const canvas = el.waveCanvas;
       const ctx = canvas.getContext("2d");
@@ -2743,7 +2848,7 @@
         ctx.setLineDash([]);
         drawRulerTab(ctx, sx, plot.top, c.color, "down");
         drawRulerTab(ctx, sx, plot.bottom, c.color, "up");
-        roundedLabel(ctx, c.label + " " + formatNum(val), Math.min(sx + 7, plot.right - 92), plot.top + 8, c.color);
+        drawSmartLabel(ctx, cursorInfoLabel(c.label, val), Math.min(sx + 7, plot.right - 120), plot.top + 8, c.color, plot);
       }
       for (const c of yCursors) {
         const val = state.cursors[c.key];
@@ -2756,7 +2861,7 @@
         ctx.setLineDash([]);
         drawRulerTab(ctx, plot.left, sy, c.color, "right");
         drawRulerTab(ctx, plot.right, sy, c.color, "left");
-        roundedLabel(ctx, c.label + " " + formatNum(val), plot.left + 8, Math.max(plot.top + 6, sy - 20), c.color);
+        drawSmartLabel(ctx, c.label + " " + formatNum(val), plot.left + 8, Math.max(plot.top + 6, sy - 20), c.color, plot);
       }
       ctx.restore();
     }
@@ -2836,10 +2941,12 @@
       const xRange = getVisibleXRange();
       const yRange = state.fullYRange || { min: 0, max: 1 };
       if (state.rev029 && state.rev029.dragMarkerId) {
+        setCanvasCursor("drag");
         dragRev029MarkerToPoint(pt);
         drawGraph(); renderDock(); return;
       }
       if (state.cursors.dragging) {
+        setCanvasCursor("drag");
         if (state.cursors.dragging === "yA" || state.cursors.dragging === "yB") {
           const yRange = state.fullYRange || { min: 0, max: 1 };
           state.cursors[state.cursors.dragging] = clamp(screenToDataY(pt.y, state.plot, yRange), yRange.min, yRange.max);
@@ -2860,7 +2967,8 @@
         }
         drawGraph(); return;
       }
-      if (!isInsidePlotPoint(pt, state.plot)) { el.hoverTip.style.display = "none"; state.hover = null; drawGraph(); return; }
+      if (!isInsidePlotPoint(pt, state.plot)) { el.hoverTip.style.display = "none"; state.hover = null; setCanvasCursor("normal"); drawGraph(); return; }
+      setCanvasCursor(getCanvasHoverMode(pt));
       const x = screenToDataX(pt.x, state.plot, xRange);
       const y = screenToDataY(pt.y, state.plot, yRange);
       state.hover = { x, y, screen: pt };
@@ -2876,11 +2984,15 @@
       const markerHit = hitRev029Marker(pt);
       if (markerHit) {
         state.rev029.dragMarkerId = markerHit;
+        setCanvasCursor("drag");
+        event.preventDefault();
         return;
       }
       const cursorHit = hitCursor(pt, xRange);
       if (cursorHit) {
         state.cursors.dragging = cursorHit;
+        setCanvasCursor("drag");
+        event.preventDefault();
         return;
       }
       if (state.noteMode) {
@@ -2901,7 +3013,7 @@
 
     function handleCanvasUp(event) {
       if (state.rev029) state.rev029.dragMarkerId = null;
-      if (state.cursors.dragging) { state.cursors.dragging = null; return; }
+      if (state.cursors.dragging) { state.cursors.dragging = null; setCanvasCursor("normal"); return; }
       if (!state.drag) return;
       const drag = state.drag;
       state.drag = null;
@@ -2915,10 +3027,12 @@
           clampZoom();
         }
       }
+      setCanvasCursor("normal");
       drawGraph(); renderDock();
     }
 
     function handleCanvasLeave() {
+      setCanvasCursor("normal");
       el.hoverTip.style.display = "none";
       state.hover = null;
       state.cursors.dragging = null;
@@ -2947,6 +3061,23 @@
       if (!state.plot || !state.rows.length) return;
       const pt = getCanvasPoint(event);
       if (!isInsidePlotPoint(pt, state.plot)) return;
+      const markerHit = hitRev029Marker(pt);
+      if (markerHit) {
+        const marker = state.rev029.markers.find(m => m.id === markerHit);
+        const axis = marker ? (state.rev029.axes[marker.axisId] || {}) : {};
+        if (marker && Number.isFinite(axis.min) && Number.isFinite(axis.max)) marker.value = (axis.min + axis.max) / 2;
+        drawGraph(); renderDock(); return;
+      }
+      const hit = hitCursor(pt, getVisibleXRange());
+      if (hit === "a" || hit === "b") {
+        state.cursors[hit] = snapXToNearest((getVisibleXRange().min + getVisibleXRange().max) / 2);
+        drawGraph(); renderDock(); return;
+      }
+      if (hit === "yA" || hit === "yB") {
+        const yr = state.fullYRange || getVisibleYRangeEstimate();
+        state.cursors[hit] = (yr.min + yr.max) / 2;
+        drawGraph(); renderDock(); return;
+      }
       const target = state.cursors.target || "a";
       if (target === "yA" || target === "yB") {
         const yRange = state.fullYRange || { min: 0, max: 1 };
@@ -2988,14 +3119,14 @@
         const val = state.cursors[key];
         if (val === null) continue;
         const sx = dataToScreenX(val, state.plot, xRange);
-        if (Math.abs(pt.x - sx) <= 10) return key;
+        if (Math.abs(pt.x - sx) <= RULER_HIT_RADIUS) return key;
       }
       const yRange = state.fullYRange || { min: 0, max: 1 };
       for (const key of ["yA", "yB"]) {
         const val = state.cursors[key];
         if (val === null) continue;
         const sy = dataToScreenY(val, state.plot, yRange);
-        if (Math.abs(pt.y - sy) <= 10) return key;
+        if (Math.abs(pt.y - sy) <= RULER_HIT_RADIUS) return key;
       }
       return null;
     }
@@ -3059,7 +3190,7 @@
     function buildReport() {
       const lines = [];
       lines.push("POPPE SCOPE OBD WORKSTATION - DIAGNOSTIC REVIEW REPORT");
-      lines.push("Revision: REV 029B");
+      lines.push("Revision: REV 029C");
       lines.push("Generated: " + new Date().toLocaleString() + " (" + new Date().toISOString() + ")");
       lines.push("Mode: Static post-capture CSV review. No live capture, no sensor communication, no hardware connection.");
       lines.push("");
@@ -3222,7 +3353,7 @@
 
     function downloadJsonSummary() {
       const payload = {
-        revision: "REV 029B",
+        revision: "REV 029C",
         generated: new Date().toISOString(),
         fileName: state.fileName,
         rows: state.rows.length,
@@ -3760,7 +3891,7 @@
         ctx.beginPath(); ctx.moveTo(x, plot.top); ctx.lineTo(x, plot.bottom); ctx.stroke();
         ctx.setLineDash([]);
         drawRulerTab(ctx, x, plot.top, c.color, "down");
-        drawSmartLabel(ctx, `Cursor ${c.label}: ${formatNum(val)}`, Math.min(x + 8, plot.right - 112), plot.top + 8, c.color, plot);
+        drawSmartLabel(ctx, cursorInfoLabel(`Cursor ${c.label}`, val, panel), Math.min(x + 8, plot.right - 140), plot.top + 8, c.color, plot);
       });
       ctx.restore();
     }
@@ -3795,27 +3926,62 @@
       return axis.min + ((plot.bottom - y) / plot.height) * (axis.max - axis.min || 1);
     }
 
+    function cursorInfoLabel(label, xValue, panel = null) {
+      const lines = [`${label}: ${formatNum(xValue)} ${state.xUnit || ""}`.trim()];
+      const visible = state.channels.filter(c => c.visible && (!panel || panel.channelNames.includes(c.name))).slice(0, 4);
+      visible.forEach(ch => {
+        const v = interpolateChannel(ch.name, xValue);
+        const name = String(ch.name || "PID").replace(/\s+/g, " ").slice(0, 24);
+        lines.push(`${name}: ${formatNum(v)}${ch.unit ? " " + ch.unit : ""}`);
+      });
+      if (state.cursors.a !== null && state.cursors.b !== null) {
+        lines.push(`ΔX: ${formatNum(Math.abs(state.cursors.b - state.cursors.a))} ${state.xUnit || ""}`.trim());
+      }
+      return lines.join("\n");
+    }
+
     function drawSmartLabel(ctx, text, x, y, color, plot) {
       ctx.save();
       ctx.font = "700 10px " + cssVar("--font", "sans-serif");
-      const w = Math.min(ctx.measureText(text).width + 14, plot.width - 10);
-      const h = 20;
+      const lines = String(text || "").split(/\n/).filter(Boolean).slice(0, 6);
+      const lineH = 13;
+      const rawW = Math.max(...lines.map(line => ctx.measureText(line).width), 80) + 14;
+      const w = Math.min(rawW, Math.max(92, plot.width - 10));
+      const h = Math.max(20, lines.length * lineH + 8);
       const candidates = [
         { x, y },
-        { x, y: y + 24 },
+        { x, y: y + h + 6 },
+        { x: x - w - 10, y },
         { x: plot.right - w - 8, y },
+        { x: plot.left + 8, y: plot.top + 8 },
         { x: plot.left + 8, y: plot.bottom - h - 8 }
       ];
       let c = candidates.find(p => p.x >= plot.left + 4 && p.x + w <= plot.right - 4 && p.y >= plot.top + 4 && p.y + h <= plot.bottom - 4) || candidates[candidates.length - 1];
-      c.x = clamp(c.x, plot.left + 4, plot.right - w - 4);
-      c.y = clamp(c.y, plot.top + 4, plot.bottom - h - 4);
+      c = { x: clamp(c.x, plot.left + 4, plot.right - w - 4), y: clamp(c.y, plot.top + 4, plot.bottom - h - 4) };
+      const boxes = plot.__labelBoxes || (plot.__labelBoxes = []);
+      let box = { x: c.x, y: c.y, w, h };
+      let guard = 0;
+      while (boxes.some(b => boxesOverlap(b, box)) && guard++ < 40) {
+        box.y += Math.max(16, Math.round(h * .55));
+        if (box.y + h > plot.bottom - 4) {
+          box.y = plot.top + 4;
+          box.x = clamp(box.x + 28, plot.left + 4, plot.right - w - 4);
+        }
+      }
+      boxes.push(box);
       ctx.fillStyle = hexToRgba(color, .88);
-      roundRect(ctx, c.x, c.y, w, h, 7); ctx.fill();
+      roundRect(ctx, box.x, box.y, w, h, 7); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.18)";
+      ctx.stroke();
       ctx.fillStyle = "#061018";
       ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.fillText(text.slice(0, 58), c.x + 7, c.y + h / 2 + 1);
+      ctx.textBaseline = "top";
+      lines.forEach((line, index) => ctx.fillText(line.slice(0, 62), box.x + 7, box.y + 5 + index * lineH));
       ctx.restore();
+    }
+
+    function boxesOverlap(a, b) {
+      return !(a.x + a.w + 4 < b.x || b.x + b.w + 4 < a.x || a.y + a.h + 4 < b.y || b.y + b.h + 4 < a.y);
     }
 
     function hitRev029Marker(pt) {
@@ -3828,7 +3994,7 @@
           const axis = layout.axes[marker.axisId] || state.rev029.axes[marker.axisId];
           if (!axis) continue;
           const y = rev029ValueToY(marker.value, axis, plot);
-          if (Math.abs(pt.y - y) <= 9) return marker.id;
+          if (Math.abs(pt.y - y) <= MARKER_HIT_RADIUS) return marker.id;
         }
       }
       return null;
