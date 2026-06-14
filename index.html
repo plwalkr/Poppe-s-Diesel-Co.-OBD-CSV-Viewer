@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Poppe's Diesel Co. OBD CSV Viewer REV 022</title>
+  <title>Poppe's Diesel Co. OBD CSV Viewer REV 029</title>
   <style>
     :root {
       --app-bg: #e9eef2;
@@ -6015,7 +6015,7 @@
         <button id="layoutMenuBtn" class="header-action" type="button">Layout</button>
         <button id="diagnosticsBtn" class="header-action" type="button">Diagnostics</button>
         <button id="settingsBtn" class="header-action icon-only" type="button" title="Settings">⚙</button>
-        <div class="version">v1.4.7</div>
+        <div class="version">v1.5.30</div>
       </div>
     </div>
   </header>
@@ -6213,7 +6213,7 @@
           <div class="graph-top">
             <div class="graph-title-block">
               <h2 id="chartTitle">Graph</h2>
-              <div class="graph-subtitle" id="chartSubtitle">REV 022 · Upload a CSV, add one or more data lines, then redraw the graph.</div>
+              <div class="graph-subtitle" id="chartSubtitle">REV 029 · Multi-axis CSV waveform review · add lines or use P051B preset.</div>
             </div>
 
             <div class="screen-only" style="min-width:220px;">
@@ -6475,7 +6475,7 @@
 
       <div class="diagnostics-footer">
         <div id="diagnosticsFooterText">Diagnostics idle.</div>
-        <div><strong>REV 022</strong> · PoppeScope OBD Workstation</div>
+        <div><strong>REV 029</strong> · PoppeScope OBD Workstation</div>
       </div>
     </div>
   </div>
@@ -9708,6 +9708,1711 @@
       ctx.fillRect(0, 0, width, height);
       drawEmptyMessage(ctx, width, height, "Upload an OBD CSV to graph data");
     }
+
+
+    /* ========================================================================
+       REV 029 PRESERVATION PATCH
+       Adds multi-axis graphing, P051B preset, natural scroll measurement
+       workspace, axis-aware cursor values, visible window summary, captured
+       measurements, horizontal axis markers, and safer ruler bubble placement.
+       This patch intentionally preserves the existing app and overrides only the
+       graph/measurement layer.
+       ======================================================================== */
+
+    const rev029 = {
+      enabled: true,
+      autoScaleYAfterZoom: false,
+      forceScrollableWorkspace: true,
+      selectedMarkerAxisId: "",
+      hMarkers: [],
+      captures: [],
+      panels: [],
+      panelMeta: {
+        "panel-main": { title: "Main Overlay", order: 10 },
+        "panel-crankcase": { title: "Panel 1: Crankcase System", order: 1 },
+        "panel-breathing": { title: "Panel 2: Engine Breathing / Load", order: 2 },
+        "panel-fuel": { title: "Panel 3: Fuel Sanity", order: 3 }
+      },
+      axisDefaults: {
+        voltage: { label: "Voltage", unit: "V", min: 0, max: 5, side: "left", locked: true },
+        crankcaseInHg: { label: "Crankcase Pressure", unit: "inHg", min: -2, max: 2, side: "right", locked: true },
+        rpm: { label: "RPM", unit: "RPM", min: 0, max: 5500, side: "right", locked: true },
+        boostPsi: { label: "Boost", unit: "psi", min: -15, max: 20, side: "right", locked: true },
+        mapInHg: { label: "MAP Absolute", unit: "inHg", min: 0, max: 45, side: "left", locked: true },
+        loadPct: { label: "Calculated Load", unit: "%", min: 0, max: 100, side: "right", locked: true },
+        trimPct: { label: "Fuel Trim", unit: "%", min: -25, max: 25, side: "left", locked: true },
+        mafGps: { label: "MAF", unit: "g/s", min: 0, max: 100, side: "right", locked: true },
+        tempF: { label: "Temperature", unit: "°F", min: -40, max: 250, side: "right", locked: true },
+        tempC: { label: "Temperature", unit: "°C", min: -40, max: 120, side: "right", locked: true },
+        percent: { label: "Percent", unit: "%", min: 0, max: 100, side: "right", locked: true },
+        generic: { label: "Value", unit: "", min: null, max: null, side: "right", locked: false }
+      }
+    };
+
+    function rev029InstallStyles() {
+      const css = `
+        body.ps-rev029-scroll {
+          position: static !important;
+          inset: auto !important;
+          height: auto !important;
+          min-height: 100vh !important;
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+        }
+
+        body.ps-rev029-scroll header {
+          position: sticky !important;
+          top: 0 !important;
+        }
+
+        body.ps-rev029-scroll main {
+          position: static !important;
+          width: min(1780px, calc(100vw - 22px)) !important;
+          max-width: none !important;
+          margin: 0 auto !important;
+          padding: 12px 0 70px !important;
+          overflow: visible !important;
+        }
+
+        body.ps-rev029-scroll .app-rail,
+        body.ps-rev029-scroll .status-footer {
+          display: none !important;
+        }
+
+        body.ps-rev029-scroll .layout {
+          height: auto !important;
+          min-height: 0 !important;
+          overflow: visible !important;
+          grid-template-columns: minmax(300px, 380px) minmax(0, 1fr) !important;
+          align-items: start !important;
+        }
+
+        body.ps-rev029-scroll .side {
+          position: sticky !important;
+          top: 70px !important;
+          height: calc(100vh - 84px) !important;
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+          display: grid !important;
+          grid-template-rows: none !important;
+          grid-auto-rows: auto !important;
+          scrollbar-width: thin !important;
+        }
+
+        body.ps-rev029-scroll .side > .card,
+        body.ps-rev029-scroll .side > .card:nth-of-type(6),
+        body.ps-rev029-scroll .side > .card:nth-of-type(7) {
+          display: block !important;
+          max-height: none !important;
+          height: auto !important;
+          min-height: 0 !important;
+          overflow: visible !important;
+        }
+
+        body.ps-rev029-scroll .layout > section.stack {
+          height: auto !important;
+          overflow: visible !important;
+          grid-template-rows: none !important;
+          grid-auto-rows: auto !important;
+          align-content: start !important;
+        }
+
+        body.ps-rev029-scroll .graph-card {
+          min-height: 720px !important;
+          height: min(860px, calc(100vh - 92px)) !important;
+          overflow: hidden !important;
+          grid-template-rows: 52px minmax(0, 1fr) !important;
+        }
+
+        body.ps-rev029-scroll .chart-shell {
+          min-height: 0 !important;
+          height: 100% !important;
+          overflow: hidden !important;
+        }
+
+        body.ps-rev029-scroll .scope-bottom-host-card {
+          display: none !important;
+        }
+
+        body.ps-rev029-scroll .layout > section.stack > .card:not(.graph-card):not(.rev029-measurement-workspace) {
+          height: auto !important;
+          min-height: 0 !important;
+          max-height: none !important;
+          overflow: visible !important;
+        }
+
+        body.ps-rev029-scroll .layout > section.stack > .card:not(.graph-card):not(.rev029-measurement-workspace) .table-wrap,
+        body.ps-rev029-scroll .tracking-table-wrap,
+        body.ps-rev029-scroll .outside-legend {
+          max-height: none !important;
+          overflow: visible !important;
+        }
+
+        .rev029-measurement-workspace {
+          height: auto !important;
+          min-height: 0 !important;
+          max-height: none !important;
+          overflow: visible !important;
+          padding: 14px !important;
+          border-radius: 16px !important;
+        }
+
+        .rev029-measurement-workspace h2,
+        .rev029-measurement-workspace h3 {
+          color: #204e7f !important;
+          margin: 0 0 10px !important;
+          letter-spacing: .03em !important;
+          text-transform: uppercase !important;
+        }
+
+        .rev029-toolbar {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+
+        .rev029-toolbar button,
+        .rev029-toolbar select,
+        .rev029-toolbar label {
+          width: auto !important;
+          min-height: 36px !important;
+          font-size: .82rem !important;
+        }
+
+        .rev029-toolbar label {
+          display: inline-flex !important;
+          align-items: center !important;
+          gap: 7px !important;
+          margin: 0 !important;
+          color: #52687f !important;
+          border: 1px solid rgba(69,124,164,.15);
+          background: #fff;
+          border-radius: 999px;
+          padding: 7px 10px;
+        }
+
+        .rev029-toolbar input[type="checkbox"] {
+          width: auto !important;
+          min-height: auto !important;
+        }
+
+        .rev029-grid {
+          display: grid;
+          grid-template-columns: minmax(280px, .85fr) minmax(520px, 1.35fr);
+          gap: 12px;
+          align-items: start;
+        }
+
+        .rev029-panel {
+          border: 1px solid rgba(69,124,164,.14);
+          border-radius: 14px;
+          overflow: hidden;
+          background: linear-gradient(180deg, #fbfdff, #f5f9fc);
+          box-shadow: 0 8px 18px rgba(34,75,105,.045);
+          margin-bottom: 12px;
+        }
+
+        .rev029-panel-title {
+          background: linear-gradient(180deg, #f0f7fe, #deedf8);
+          border-bottom: 1px solid rgba(69,124,164,.12);
+          padding: 9px 12px;
+          font-size: .78rem;
+          color: #204e7f;
+          font-weight: 900;
+          letter-spacing: .06em;
+          text-transform: uppercase;
+        }
+
+        .rev029-panel-body {
+          padding: 10px;
+        }
+
+        .rev029-axis-list {
+          display: grid;
+          gap: 8px;
+        }
+
+        .rev029-axis-card {
+          border: 1px solid rgba(69,124,164,.13);
+          border-left-width: 6px;
+          border-radius: 12px;
+          padding: 9px;
+          background: #fff;
+          display: grid;
+          gap: 7px;
+        }
+
+        .rev029-axis-card strong {
+          color: #0f2944;
+          font-size: .82rem;
+        }
+
+        .rev029-axis-card span {
+          color: #52687f;
+          font-size: .72rem;
+        }
+
+        .rev029-axis-controls {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px;
+        }
+
+        .rev029-axis-controls input,
+        .rev029-axis-controls select,
+        .rev029-axis-controls button {
+          min-height: 32px !important;
+          font-size: .75rem !important;
+          padding: 5px 7px !important;
+          border-radius: 9px !important;
+        }
+
+        .rev029-table-wrap {
+          overflow-x: auto;
+          border: 1px solid rgba(69,124,164,.13);
+          border-radius: 12px;
+          background: #fff;
+          margin-bottom: 12px;
+        }
+
+        .rev029-table {
+          width: 100%;
+          min-width: 760px;
+          border-collapse: collapse;
+          font-size: .8rem;
+        }
+
+        .rev029-table th {
+          position: sticky;
+          top: 0;
+          background: #edf5fc !important;
+          color: #214e78 !important;
+          z-index: 1;
+        }
+
+        .rev029-table th,
+        .rev029-table td {
+          padding: 8px 9px !important;
+          border-bottom: 1px solid rgba(69,124,164,.13);
+          text-align: left;
+          white-space: nowrap;
+        }
+
+        .rev029-table td.num {
+          text-align: right;
+          font-family: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        .rev029-capture {
+          border: 1px solid rgba(69,124,164,.13);
+          border-radius: 12px;
+          background: #fff;
+          padding: 10px;
+          margin-bottom: 8px;
+        }
+
+        .rev029-capture h4 {
+          margin: 0 0 6px;
+          color: #173042;
+        }
+
+        .rev029-hint {
+          color: #52687f;
+          font-size: .78rem;
+          line-height: 1.35;
+        }
+
+        @media (max-width: 1120px) {
+          body.ps-rev029-scroll .layout {
+            grid-template-columns: 1fr !important;
+          }
+
+          body.ps-rev029-scroll .side {
+            position: static !important;
+            height: auto !important;
+          }
+
+          .rev029-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `;
+      const style = document.createElement("style");
+      style.id = "rev029PatchStyles";
+      style.textContent = css;
+      document.head.appendChild(style);
+      document.body.classList.add("ps-rev029-scroll");
+    }
+
+    function rev029InstallWorkspace() {
+      if (document.getElementById("rev029MeasurementWorkspace")) return;
+
+      const stack = document.querySelector(".layout > section.stack");
+      if (!stack) return;
+
+      const card = document.createElement("section");
+      card.className = "card rev029-measurement-workspace";
+      card.id = "rev029MeasurementWorkspace";
+      card.innerHTML = `
+        <h2>REV 029 Multi-Axis Measurement Workspace</h2>
+        <div class="rev029-toolbar">
+          <button id="rev029P051BBtn" type="button">P051B Crankcase Inspection</button>
+          <button id="rev029AutoGroupBtn" type="button">Auto Group Axes</button>
+          <button id="rev029FitYBtn" type="button">Fit Y Visible</button>
+          <button id="rev029AddHMarkerBtn" type="button">Add Horizontal Marker</button>
+          <button id="rev029CaptureBtn" type="button">Capture Measurement</button>
+          <select id="rev029MarkerAxisSelect" title="Marker axis"></select>
+          <label><input id="rev029AutoYAfterZoom" type="checkbox"> Auto-scale Y after zoom</label>
+        </div>
+
+        <div class="rev029-grid">
+          <div>
+            <div class="rev029-panel">
+              <div class="rev029-panel-title">Axis Controls</div>
+              <div class="rev029-panel-body">
+                <div id="rev029AxisList" class="rev029-axis-list">
+                  <div class="rev029-hint">Load a CSV and add lines to control axes.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rev029-panel">
+              <div class="rev029-panel-title">Horizontal Markers / Rulers</div>
+              <div class="rev029-panel-body">
+                <div id="rev029MarkerList" class="rev029-axis-list">
+                  <div class="rev029-hint">No horizontal markers yet.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="rev029-panel">
+              <div class="rev029-panel-title">Cursor A/B Channel Values</div>
+              <div class="rev029-panel-body">
+                <div id="rev029CursorMeta" class="rev029-hint">Turn on rulers to populate Cursor A/B values.</div>
+                <div class="rev029-table-wrap">
+                  <table class="rev029-table" id="rev029CursorTable">
+                    <thead>
+                      <tr>
+                        <th>Channel</th>
+                        <th>Panel</th>
+                        <th>Axis</th>
+                        <th>Cursor A</th>
+                        <th>Cursor B</th>
+                        <th>Delta</th>
+                        <th>Unit</th>
+                      </tr>
+                    </thead>
+                    <tbody><tr><td colspan="7">No cursor data yet.</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="rev029-panel">
+              <div class="rev029-panel-title">Visible Window Summary</div>
+              <div class="rev029-panel-body">
+                <div id="rev029WindowMeta" class="rev029-hint">Visible range summary will appear after graphing.</div>
+                <div class="rev029-table-wrap">
+                  <table class="rev029-table" id="rev029SummaryTable">
+                    <thead>
+                      <tr>
+                        <th>Channel</th>
+                        <th>Panel</th>
+                        <th>Axis</th>
+                        <th>Min</th>
+                        <th>Average</th>
+                        <th>Max</th>
+                        <th>Unit</th>
+                        <th>Samples</th>
+                      </tr>
+                    </thead>
+                    <tbody><tr><td colspan="8">No summary yet.</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="rev029-panel">
+              <div class="rev029-panel-title">Captured Measurements</div>
+              <div class="rev029-panel-body" id="rev029CaptureList">
+                <div class="rev029-hint">No captured measurements yet.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const graphCard = stack.querySelector(".graph-card");
+      if (graphCard && graphCard.nextSibling) {
+        stack.insertBefore(card, graphCard.nextSibling);
+      } else {
+        stack.appendChild(card);
+      }
+
+      document.getElementById("rev029P051BBtn").addEventListener("click", rev029ApplyP051BPreset);
+      document.getElementById("rev029AutoGroupBtn").addEventListener("click", () => {
+        graphLines.forEach(line => rev029ApplyDefaultLineConfig(line, true));
+        drawGraph();
+      });
+      document.getElementById("rev029FitYBtn").addEventListener("click", () => {
+        graphLines.forEach(line => {
+          const axis = rev029GetLineAxis(line);
+          axis.locked = false;
+          line.rev029ScaleMode = "visibleRange";
+        });
+        drawGraph();
+      });
+      document.getElementById("rev029AddHMarkerBtn").addEventListener("click", rev029AddHorizontalMarker);
+      document.getElementById("rev029CaptureBtn").addEventListener("click", rev029CaptureMeasurement);
+      document.getElementById("rev029AutoYAfterZoom").addEventListener("change", event => {
+        rev029.autoScaleYAfterZoom = event.target.checked;
+      });
+      document.getElementById("rev029MarkerAxisSelect").addEventListener("change", event => {
+        rev029.selectedMarkerAxisId = event.target.value;
+      });
+    }
+
+    function rev029InferUnit(name) {
+      const text = String(name || "");
+      const parens = [...text.matchAll(/\(([^)]+)\)/g)].map(match => match[1].trim()).filter(Boolean);
+      if (parens.length) {
+        const last = parens[parens.length - 1];
+        if (/^gauge$/i.test(last)) {
+          const pressureUnit = parens.find(unit => /inhg|psi|kpa/i.test(unit));
+          if (pressureUnit) return rev029NormalizeUnit(pressureUnit);
+        }
+        return rev029NormalizeUnit(last);
+      }
+
+      const lower = text.toLowerCase();
+      if (/rpm|engine speed/.test(lower)) return "RPM";
+      if (/volt|circuit input/.test(lower)) return "V";
+      if (/boost/.test(lower)) return "psi";
+      if (/pressure|map|manifold absolute/.test(lower)) {
+        if (/kpa/.test(lower)) return "kPa";
+        if (/psi/.test(lower)) return "psi";
+        return "inHg";
+      }
+      if (/load|trim|percent|throttle|pedal|duty|command/.test(lower)) return "%";
+      if (/maf|mass air/.test(lower)) return "g/s";
+      if (/temp|temperature/.test(lower)) return "°F";
+      return "";
+    }
+
+    function rev029NormalizeUnit(unit) {
+      const raw = String(unit || "").trim();
+      if (/^v$|volt/i.test(raw)) return "V";
+      if (/rpm/i.test(raw)) return "RPM";
+      if (/inhg/i.test(raw)) return "inHg";
+      if (/psi/i.test(raw)) return "psi";
+      if (/kpa/i.test(raw)) return "kPa";
+      if (/g\/s|grams.*sec|gps/i.test(raw)) return "g/s";
+      if (/°?f|degf|fahrenheit/i.test(raw)) return "°F";
+      if (/°?c|degc|celsius/i.test(raw)) return "°C";
+      if (/%|percent/i.test(raw)) return "%";
+      return raw;
+    }
+
+    function rev029AxisIdForColumn(column) {
+      const lower = String(column || "").toLowerCase();
+      const unit = rev029InferUnit(column);
+      if (/crankcase.*pressure/.test(lower) && unit === "inHg") return "axis-crankcase-inhg";
+      if ((/crankcase/.test(lower) && /volt/.test(lower)) || (/crankcase/.test(lower) && /circuit input/.test(lower))) return "axis-voltage";
+      if (/rpm|engine speed/.test(lower) || unit === "RPM") return "axis-rpm";
+      if (/boost/.test(lower)) return "axis-boost-psi";
+      if (/map|manifold absolute/.test(lower)) return unit === "kPa" ? "axis-map-kpa" : "axis-map-inhg";
+      if (/stft|ltft|fuel trim|trim/.test(lower) && unit === "%") return "axis-fuel-trim-percent";
+      if (/load/.test(lower) && unit === "%") return "axis-load-percent";
+      if (/maf|mass air/.test(lower)) return "axis-maf-gps";
+      if (unit === "V") return "axis-voltage";
+      if (unit === "%") return "axis-percent";
+      if (unit === "°F") return "axis-temp-f";
+      if (unit === "°C") return "axis-temp-c";
+      return "axis-" + rev029Slug(unit || "value");
+    }
+
+    function rev029Slug(value) {
+      return String(value || "value").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "value";
+    }
+
+    function rev029DefaultAxisSpec(column) {
+      const lower = String(column || "").toLowerCase();
+      const unit = rev029InferUnit(column);
+      let spec = rev029.axisDefaults.generic;
+
+      if (unit === "V") spec = rev029.axisDefaults.voltage;
+      if (unit === "RPM" || /rpm|engine speed/.test(lower)) spec = rev029.axisDefaults.rpm;
+      if (/crankcase.*pressure/.test(lower) && unit === "inHg") spec = rev029.axisDefaults.crankcaseInHg;
+      else if (/boost/.test(lower) && unit === "psi") spec = rev029.axisDefaults.boostPsi;
+      else if (/map|manifold absolute/.test(lower)) spec = unit === "kPa"
+        ? { label: "MAP Absolute", unit: "kPa", min: 0, max: 155, side: "left", locked: true }
+        : rev029.axisDefaults.mapInHg;
+      else if (/load/.test(lower) && unit === "%") spec = rev029.axisDefaults.loadPct;
+      else if (/stft|ltft|fuel trim|trim/.test(lower) && unit === "%") spec = rev029.axisDefaults.trimPct;
+      else if (/maf|mass air/.test(lower)) spec = rev029.axisDefaults.mafGps;
+      else if (unit === "%") spec = rev029.axisDefaults.percent;
+      else if (unit === "°F") spec = rev029.axisDefaults.tempF;
+      else if (unit === "°C") spec = rev029.axisDefaults.tempC;
+
+      return {
+        axisId: rev029AxisIdForColumn(column),
+        label: spec.label,
+        unit: spec.unit || unit,
+        min: spec.min,
+        max: spec.max,
+        side: spec.side || "right",
+        locked: !!spec.locked,
+        visible: true
+      };
+    }
+
+    function rev029ApplyDefaultLineConfig(line, force) {
+      if (!line) return line;
+      const spec = rev029DefaultAxisSpec(line.column);
+      if (force || !line.rev029AxisId) line.rev029AxisId = spec.axisId;
+      if (force || !line.rev029Unit) line.rev029Unit = spec.unit || rev029InferUnit(line.column);
+      if (force || !line.rev029AxisLabel) line.rev029AxisLabel = spec.label;
+      if (force || !line.rev029AxisSide) line.rev029AxisSide = spec.side;
+      if (force || line.rev029AxisVisible === undefined) line.rev029AxisVisible = true;
+      if (force || !line.rev029PanelId) line.rev029PanelId = "panel-main";
+      if (force || !line.rev029ScaleMode) line.rev029ScaleMode = spec.locked ? "manual" : "auto";
+      if (force || line.rev029ManualMin === undefined || line.rev029ManualMin === null) line.rev029ManualMin = spec.min;
+      if (force || line.rev029ManualMax === undefined || line.rev029ManualMax === null) line.rev029ManualMax = spec.max;
+      if (force || line.rev029Locked === undefined) line.rev029Locked = !!spec.locked;
+      if (force || line.rev029Normalized === undefined) line.rev029Normalized = false;
+      return line;
+    }
+
+    function rev029GetLineAxis(line) {
+      rev029ApplyDefaultLineConfig(line, false);
+      return {
+        axisId: line.rev029AxisId,
+        label: line.rev029AxisLabel || rev029DefaultAxisSpec(line.column).label,
+        unit: line.rev029Unit || rev029InferUnit(line.column),
+        side: line.rev029AxisSide || "right",
+        visible: line.rev029AxisVisible !== false,
+        color: line.color,
+        locked: !!line.rev029Locked,
+        scaleMode: line.rev029ScaleMode || "auto",
+        min: line.rev029ManualMin,
+        max: line.rev029ManualMax
+      };
+    }
+
+    function rev029BuildVisibleSeries(xCol) {
+      return graphLines
+        .filter(line => line.visible)
+        .map((line, index) => {
+          rev029ApplyDefaultLineConfig(line, false);
+          const fullPoints = getSeries(xCol, line.column);
+          const points = fullPoints.filter(point => {
+            if (!zoomRange) return true;
+            return point.x >= zoomRange.minX && point.x <= zoomRange.maxX;
+          });
+          return { line, index, fullPoints, points };
+        })
+        .filter(series => series.fullPoints.length >= 2);
+    }
+
+    function rev029BuildPanels(lineSeries, width, height) {
+      const active = lineSeries.filter(series => series.points.length >= 2);
+      const map = new Map();
+
+      active.forEach(series => {
+        const panelId = series.line.rev029PanelId || "panel-main";
+        if (!map.has(panelId)) {
+          map.set(panelId, {
+            panelId,
+            title: (rev029.panelMeta[panelId] && rev029.panelMeta[panelId].title) || panelId,
+            order: (rev029.panelMeta[panelId] && rev029.panelMeta[panelId].order) || 50,
+            series: [],
+            axes: new Map(),
+            bounds: null
+          });
+        }
+
+        const panel = map.get(panelId);
+        panel.series.push(series);
+
+        const axis = rev029GetLineAxis(series.line);
+        if (!panel.axes.has(axis.axisId)) {
+          panel.axes.set(axis.axisId, {
+            ...axis,
+            lines: [],
+            min: Number.isFinite(axis.min) ? axis.min : null,
+            max: Number.isFinite(axis.max) ? axis.max : null
+          });
+        }
+        panel.axes.get(axis.axisId).lines.push(series);
+      });
+
+      const panels = [...map.values()].sort((a, b) => a.order - b.order);
+      const outerPad = { top: 38, right: 32, bottom: 42, left: 78 };
+      const panelGap = panels.length > 1 ? 24 : 0;
+      const usableH = height - outerPad.top - outerPad.bottom - panelGap * Math.max(0, panels.length - 1);
+      const eachH = Math.max(120, usableH / Math.max(1, panels.length));
+
+      panels.forEach((panel, panelIndex) => {
+        const axes = [...panel.axes.values()];
+        const leftAxes = axes.filter(axis => axis.visible && axis.side === "left").length;
+        const rightAxes = axes.filter(axis => axis.visible && axis.side !== "left").length;
+        const leftPad = 76 + Math.max(0, leftAxes - 1) * 48;
+        const rightPad = 42 + Math.max(0, rightAxes - 1) * 54;
+        const top = outerPad.top + panelIndex * (eachH + panelGap);
+        const bottom = top + eachH;
+        panel.bounds = {
+          pad: { top, left: leftPad, right: rightPad, bottom: height - bottom },
+          top,
+          bottom,
+          left: leftPad,
+          right: width - rightPad,
+          width: width - leftPad - rightPad,
+          height: eachH
+        };
+      });
+
+      return panels;
+    }
+
+    function rev029ComputeAxisRanges(panel, xRange) {
+      panel.axes.forEach(axis => {
+        const values = [];
+
+        axis.lines.forEach(series => {
+          const source = series.points.length ? series.points : series.fullPoints;
+          source.forEach(point => {
+            if (xRange && (point.x < xRange.minX || point.x > xRange.maxX)) return;
+            if (Number.isFinite(point.y)) values.push(point.y);
+          });
+        });
+
+        const shouldAuto = axis.scaleMode === "auto" || axis.scaleMode === "visibleRange" || !axis.locked || !Number.isFinite(axis.min) || !Number.isFinite(axis.max);
+        if (shouldAuto && values.length) {
+          let min = Math.min(...values);
+          let max = Math.max(...values);
+          if (min === max) {
+            const span = Math.abs(min) > 1 ? Math.abs(min) * .1 : 1;
+            min -= span;
+            max += span;
+          }
+          const pad = (max - min) * .06;
+          axis.min = min - pad;
+          axis.max = max + pad;
+        }
+
+        if (!Number.isFinite(axis.min) || !Number.isFinite(axis.max) || axis.min === axis.max) {
+          axis.min = 0;
+          axis.max = 1;
+        }
+      });
+    }
+
+    function rev029DrawGraph() {
+      applyTheme();
+
+      const canvas = els.chart;
+      const ctx = canvas.getContext("2d");
+      const cssWidth = canvas.clientWidth || 1000;
+      const cssHeight = canvas.clientHeight || 620;
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = Math.floor(cssWidth * dpr);
+      canvas.height = Math.floor(cssHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const width = cssWidth;
+      const height = cssHeight;
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--chart-bg").trim() || "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+
+      lastRenderPoints = [];
+      graphBounds = null;
+
+      const visibleLines = graphLines.filter(line => line.visible);
+      const xCol = els.xColumn.value || "__rowNumber";
+
+      if (!parsedData.length || !visibleLines.length) {
+        drawEmptyMessage(ctx, width, height, parsedData.length ? "Add a data line to draw the graph" : "Upload an OBD CSV to graph data");
+        updateMainStats(0, 0, xCol);
+        renderStatsTable([]);
+        renderOutsideLegend([]);
+        renderTrackingTable();
+        renderScopeChrome([]);
+        rev029RenderWorkspace();
+        setGraphStatus(parsedData.length ? "CSV loaded. Add a data line." : "Ready for CSV upload.", parsedData.length ? "warn" : "");
+        return;
+      }
+
+      graphLines.forEach(line => rev029ApplyDefaultLineConfig(line, false));
+
+      const fullLineSeries = rev029BuildVisibleSeries(xCol);
+      const lineSeries = fullLineSeries.filter(series => series.points.length >= 2);
+
+      if (!lineSeries.length) {
+        drawEmptyMessage(ctx, width, height, "Not enough numeric data in the visible time window");
+        setGraphStatus("Not enough numeric data found in the visible window.", "bad");
+        renderStatsTable([]);
+        renderOutsideLegend([]);
+        renderTrackingTable();
+        renderScopeChrome([]);
+        rev029RenderWorkspace();
+        updateZoomStatus();
+        return;
+      }
+
+      const allFullPoints = fullLineSeries.flatMap(series => series.fullPoints);
+      let minX = Math.min(...allFullPoints.map(point => point.x));
+      let maxX = Math.max(...allFullPoints.map(point => point.x));
+      if (zoomRange) {
+        minX = zoomRange.minX;
+        maxX = zoomRange.maxX;
+      }
+      if (minX === maxX) maxX = minX + 1;
+
+      const panels = rev029BuildPanels(lineSeries, width, height);
+      const xRange = { minX, maxX };
+      panels.forEach(panel => rev029ComputeAxisRanges(panel, xRange));
+      rev029.panels = panels;
+
+      panels.forEach(panel => {
+        rev029DrawPanelGrid(ctx, panel, minX, maxX);
+        rev029DrawPanelAxes(ctx, panel);
+        rev029DrawPanelTraces(ctx, panel, minX, maxX);
+        rev029DrawHorizontalMarkers(ctx, panel);
+        rev029DrawPanelTitle(ctx, panel);
+      });
+
+      const primaryPanel = panels[0];
+      const primaryAxis = primaryPanel ? [...primaryPanel.axes.values()][0] : null;
+
+      if (primaryPanel && primaryAxis) {
+        graphBounds = rev029MakeBoundsAdapter(primaryPanel, primaryAxis, minX, maxX);
+      }
+
+      if (els.showNotes.checked) {
+        drawNotes(ctx);
+      }
+
+      drawMeasurements(ctx);
+
+      if (isDraggingZoom && dragStart && dragEnd) {
+        drawZoomBox(ctx, dragStart, dragEnd);
+      }
+
+      renderOutsideLegend(lineSeries);
+      const totalSamples = lineSeries.reduce((sum, series) => sum + series.points.length, 0);
+      updateMainStats(lineSeries.length, totalSamples, xCol);
+      renderStatsTable(lineSeries);
+      updateTitles(lineSeries, xCol);
+      updateZoomStatus();
+      renderMeasurement();
+      renderTrackingTable();
+      renderScopeChrome(lineSeries);
+      rev029RenderWorkspace();
+
+      setGraphStatus(
+        "REV 029 multi-axis graph drawn with " + panels.length + " panel(s), " +
+        lineSeries.length + " active line(s), and independent Y-axis scaling.",
+        "good"
+      );
+    }
+
+    function rev029MakeBoundsAdapter(panel, axis, minX, maxX) {
+      const b = panel.bounds;
+      const chartW = b.width;
+      const chartH = b.height;
+      const pad = {
+        top: b.top,
+        left: b.left,
+        right: (els.chart.clientWidth || 1000) - b.right,
+        bottom: (els.chart.clientHeight || 620) - b.bottom
+      };
+
+      const sx = x => b.left + ((x - minX) / (maxX - minX)) * chartW;
+      const sy = y => b.bottom - ((y - axis.min) / (axis.max - axis.min)) * chartH;
+
+      return {
+        pad,
+        chartW,
+        chartH,
+        minX,
+        maxX,
+        minY: axis.min,
+        maxY: axis.max,
+        sx,
+        sy,
+        rev029PrimaryPanelId: panel.panelId,
+        rev029PrimaryAxisId: axis.axisId
+      };
+    }
+
+    function rev029DrawPanelGrid(ctx, panel, minX, maxX) {
+      const b = panel.bounds;
+      ctx.save();
+      ctx.strokeStyle = "rgba(42,95,125,.16)";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "rgba(18,47,75,.76)";
+      ctx.font = "12px Arial";
+
+      for (let i = 0; i <= 6; i++) {
+        const t = i / 6;
+        const x = b.left + t * b.width;
+        const value = minX + t * (maxX - minX);
+
+        ctx.beginPath();
+        ctx.moveTo(x, b.top);
+        ctx.lineTo(x, b.bottom);
+        ctx.stroke();
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText(formatNumber(value), x, b.bottom + 10);
+      }
+
+      for (let i = 0; i <= 5; i++) {
+        const t = i / 5;
+        const y = b.top + t * b.height;
+        ctx.beginPath();
+        ctx.moveTo(b.left, y);
+        ctx.lineTo(b.right, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(42,95,125,.34)";
+      ctx.strokeRect(b.left, b.top, b.width, b.height);
+      ctx.restore();
+    }
+
+    function rev029DrawPanelAxes(ctx, panel) {
+      const b = panel.bounds;
+      const axes = [...panel.axes.values()].filter(axis => axis.visible);
+      const sideCount = { left: 0, right: 0 };
+
+      ctx.save();
+      ctx.font = "12px Arial";
+      ctx.textBaseline = "middle";
+
+      axes.forEach(axis => {
+        const isLeft = axis.side === "left";
+        const offsetIndex = sideCount[isLeft ? "left" : "right"]++;
+        const x = isLeft ? b.left - 10 - offsetIndex * 48 : b.right + 10 + offsetIndex * 54;
+        const color = axis.color || "#1b6f98";
+
+        ctx.strokeStyle = hexToRgba(color, .82);
+        ctx.fillStyle = color;
+        ctx.lineWidth = 1.3;
+
+        ctx.beginPath();
+        ctx.moveTo(x, b.top);
+        ctx.lineTo(x, b.bottom);
+        ctx.stroke();
+
+        ctx.textAlign = isLeft ? "right" : "left";
+
+        for (let i = 0; i <= 5; i++) {
+          const t = i / 5;
+          const y = b.bottom - t * b.height;
+          const value = axis.min + t * (axis.max - axis.min);
+
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + (isLeft ? -5 : 5), y);
+          ctx.stroke();
+
+          ctx.fillText(formatNumber(value), x + (isLeft ? -9 : 9), y);
+        }
+
+        ctx.save();
+        ctx.translate(isLeft ? x - 42 : x + 44, b.top + 8);
+        ctx.rotate(isLeft ? -Math.PI / 2 : Math.PI / 2);
+        ctx.textAlign = isLeft ? "right" : "left";
+        ctx.textBaseline = "middle";
+        ctx.font = "bold 12px Arial";
+        ctx.fillText(axis.label + (axis.unit ? " (" + axis.unit + ")" : ""), 0, 0);
+        ctx.restore();
+      });
+
+      ctx.restore();
+    }
+
+    function rev029DrawPanelTitle(ctx, panel) {
+      const b = panel.bounds;
+      const axisCount = [...panel.axes.values()].filter(axis => axis.visible).length;
+
+      ctx.save();
+      ctx.fillStyle = "rgba(255,255,255,.86)";
+      ctx.strokeStyle = "rgba(69,124,164,.16)";
+      roundRect(ctx, b.left + 8, b.top + 8, Math.min(370, b.width - 16), 28, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#173042";
+      ctx.font = "bold 13px Arial";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+      ctx.fillText(panel.title + " · " + axisCount + " Y-axis" + (axisCount === 1 ? "" : "es"), b.left + 18, b.top + 22);
+
+      if (axisCount > 4) {
+        ctx.fillStyle = "#b7791f";
+        ctx.font = "bold 12px Arial";
+        ctx.fillText("Warning: more than 4 axes. Split into another panel for readability.", b.left + 18, b.top + 44);
+      }
+
+      ctx.restore();
+    }
+
+    function rev029DrawPanelTraces(ctx, panel, minX, maxX) {
+      const b = panel.bounds;
+
+      panel.series.forEach(series => {
+        const axis = panel.axes.get(series.line.rev029AxisId);
+        if (!axis) return;
+        const points = series.points.filter(point => point.x >= minX && point.x <= maxX);
+        if (points.length < 2) return;
+
+        const normalized = !!series.line.rev029Normalized;
+        const statsValues = points.map(point => point.y).filter(Number.isFinite);
+        const minVal = Math.min(...statsValues);
+        const maxVal = Math.max(...statsValues);
+        const normSpan = maxVal - minVal || 1;
+
+        const sx = x => b.left + ((x - minX) / (maxX - minX)) * b.width;
+        const sy = y => {
+          if (normalized) {
+            const ratio = (y - minVal) / normSpan;
+            return b.bottom - ratio * b.height;
+          }
+          return b.bottom - ((y - axis.min) / (axis.max - axis.min)) * b.height;
+        };
+
+        ctx.save();
+        ctx.strokeStyle = series.line.color;
+        ctx.lineWidth = normalized ? 2.0 : 2.3;
+        ctx.globalAlpha = normalized ? .74 : .95;
+        if (normalized) ctx.setLineDash([5, 5]);
+
+        ctx.beginPath();
+        points.forEach((point, idx) => {
+          const x = sx(point.x);
+          const y = sy(point.y);
+          if (idx === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const step = Math.max(1, Math.floor(points.length / 24));
+        ctx.fillStyle = series.line.color;
+        ctx.globalAlpha = .78;
+        for (let i = 0; i < points.length; i += step) {
+          ctx.beginPath();
+          ctx.arc(sx(points[i].x), sy(points[i].y), 2.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        points.forEach(point => {
+          lastRenderPoints.push({
+            lineId: series.line.id,
+            column: series.line.column,
+            color: series.line.color,
+            x: point.x,
+            y: point.y,
+            xLabel: point.xLabel,
+            yValue: point.y,
+            screenX: sx(point.x),
+            screenY: sy(point.y),
+            unit: series.line.rev029Unit || "",
+            axisId: axis.axisId,
+            panelId: panel.panelId
+          });
+        });
+
+        ctx.restore();
+      });
+    }
+
+    function rev029DrawHorizontalMarkers(ctx, panel) {
+      const b = panel.bounds;
+
+      rev029.hMarkers
+        .filter(marker => marker.visible !== false && marker.panelId === panel.panelId)
+        .forEach(marker => {
+          const axis = panel.axes.get(marker.axisId);
+          if (!axis) return;
+
+          const y = b.bottom - ((marker.value - axis.min) / (axis.max - axis.min)) * b.height;
+          if (y < b.top - 12 || y > b.bottom + 12) return;
+
+          ctx.save();
+          ctx.strokeStyle = hexToRgba(marker.color || axis.color || "#f6ad55", .9);
+          ctx.fillStyle = marker.color || axis.color || "#f6ad55";
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([9, 5]);
+          ctx.beginPath();
+          ctx.moveTo(b.left, y);
+          ctx.lineTo(b.right, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          const text = (marker.label || "Marker") + ": " + formatNumber(marker.value) + (axis.unit ? " " + axis.unit : "");
+          rev029DrawAutoBubble(ctx, b.left + 10, y - 25, text, marker.color || axis.color || "#f6ad55", b, "marker-" + marker.id);
+          ctx.restore();
+        });
+    }
+
+    function rev029DrawAutoBubble(ctx, x, y, text, color, bounds, key) {
+      ctx.font = "bold 12px Arial";
+      const paddingX = 8;
+      const height = 23;
+      const width = ctx.measureText(text).width + paddingX * 2;
+      const candidates = [
+        { x, y },
+        { x, y: y + 30 },
+        { x: bounds.right - width - 8, y },
+        { x: bounds.left + 8, y: bounds.top + 8 },
+        { x: bounds.right - width - 8, y: bounds.bottom - height - 8 }
+      ];
+
+      let chosen = candidates[0];
+      for (const c of candidates) {
+        const bx = clamp(c.x, bounds.left + 4, bounds.right - width - 4);
+        const by = clamp(c.y, bounds.top + 4, bounds.bottom - height - 4);
+        chosen = { x: bx, y: by };
+        break;
+      }
+
+      ctx.fillStyle = color;
+      roundRect(ctx, chosen.x, chosen.y, width, height, 7);
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba("#ffffff", .85);
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.fillStyle = readableTextColor(color);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, chosen.x + paddingX, chosen.y + height / 2 + .5);
+    }
+
+    function rev029AddHorizontalMarker() {
+      const axisOptions = rev029GetCurrentAxes();
+      if (!axisOptions.length) {
+        setGraphStatus("Add graph lines before adding a horizontal marker.", "warn");
+        return;
+      }
+
+      let axis = axisOptions.find(item => item.axisId === rev029.selectedMarkerAxisId) || axisOptions[0];
+      const value = (axis.min + axis.max) / 2;
+      rev029.hMarkers.push({
+        id: makeId(),
+        axisId: axis.axisId,
+        panelId: axis.panelId,
+        value,
+        label: "Horizontal marker",
+        color: axis.color || "#f6ad55",
+        visible: true,
+        locked: false
+      });
+      drawGraph();
+    }
+
+    function rev029GetCurrentAxes() {
+      const axes = [];
+      rev029.panels.forEach(panel => {
+        panel.axes.forEach(axis => axes.push({
+          ...axis,
+          panelId: panel.panelId,
+          panelTitle: panel.title
+        }));
+      });
+      return axes;
+    }
+
+    function rev029RenderWorkspace() {
+      rev029RenderAxisControls();
+      rev029RenderMarkerControls();
+      rev029RenderCursorTable();
+      rev029RenderWindowSummary();
+      rev029RenderCaptures();
+    }
+
+    function rev029RenderAxisControls() {
+      const host = document.getElementById("rev029AxisList");
+      const markerSelect = document.getElementById("rev029MarkerAxisSelect");
+      if (!host || !markerSelect) return;
+
+      const axes = rev029GetCurrentAxes();
+
+      markerSelect.innerHTML = axes.map(axis =>
+        '<option value="' + escapeHtml(axis.axisId) + '">' +
+        escapeHtml(axis.panelTitle + " · " + axis.label + (axis.unit ? " (" + axis.unit + ")" : "")) +
+        '</option>'
+      ).join("");
+      if (rev029.selectedMarkerAxisId && axes.some(axis => axis.axisId === rev029.selectedMarkerAxisId)) {
+        markerSelect.value = rev029.selectedMarkerAxisId;
+      } else if (axes[0]) {
+        rev029.selectedMarkerAxisId = axes[0].axisId;
+        markerSelect.value = axes[0].axisId;
+      }
+
+      if (!axes.length) {
+        host.innerHTML = '<div class="rev029-hint">Load a CSV and add lines to control axes.</div>';
+        return;
+      }
+
+      host.innerHTML = axes.map(axis => {
+        const related = graphLines.filter(line => line.rev029AxisId === axis.axisId && line.rev029PanelId === axis.panelId);
+        const first = related[0];
+        const min = Number.isFinite(axis.min) ? axis.min : 0;
+        const max = Number.isFinite(axis.max) ? axis.max : 1;
+        return `
+          <div class="rev029-axis-card" style="border-left-color:${axis.color || "#2f80dc"}" data-axis="${escapeHtml(axis.axisId)}" data-panel="${escapeHtml(axis.panelId)}">
+            <strong>${escapeHtml(axis.panelTitle)} · ${escapeHtml(axis.label)} ${axis.unit ? "(" + escapeHtml(axis.unit) + ")" : ""}</strong>
+            <span>${related.length} channel(s): ${escapeHtml(related.map(line => line.column).join(", "))}</span>
+            <div class="rev029-axis-controls">
+              <input class="rev029AxisMin" type="number" step="0.001" value="${formatNumber(min)}" title="Manual min">
+              <input class="rev029AxisMax" type="number" step="0.001" value="${formatNumber(max)}" title="Manual max">
+              <select class="rev029AxisMode">
+                <option value="auto"${first && first.rev029ScaleMode === "auto" ? " selected" : ""}>Auto</option>
+                <option value="manual"${!first || first.rev029ScaleMode === "manual" ? " selected" : ""}>Manual / Locked</option>
+                <option value="visibleRange"${first && first.rev029ScaleMode === "visibleRange" ? " selected" : ""}>Fit Visible</option>
+                <option value="normalized"${first && first.rev029Normalized ? " selected" : ""}>Normalize Visual</option>
+              </select>
+              <button class="rev029AxisHide" type="button">${first && first.rev029AxisVisible === false ? "Show Axis" : "Hide Axis"}</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      host.querySelectorAll(".rev029-axis-card").forEach(card => {
+        const axisId = card.dataset.axis;
+        const panelId = card.dataset.panel;
+        const related = graphLines.filter(line => line.rev029AxisId === axisId && line.rev029PanelId === panelId);
+
+        card.querySelector(".rev029AxisMin").addEventListener("change", event => {
+          const value = Number(event.target.value);
+          if (!Number.isFinite(value)) return;
+          related.forEach(line => {
+            line.rev029ManualMin = value;
+            line.rev029ScaleMode = "manual";
+            line.rev029Locked = true;
+          });
+          drawGraph();
+        });
+
+        card.querySelector(".rev029AxisMax").addEventListener("change", event => {
+          const value = Number(event.target.value);
+          if (!Number.isFinite(value)) return;
+          related.forEach(line => {
+            line.rev029ManualMax = value;
+            line.rev029ScaleMode = "manual";
+            line.rev029Locked = true;
+          });
+          drawGraph();
+        });
+
+        card.querySelector(".rev029AxisMode").addEventListener("change", event => {
+          const mode = event.target.value;
+          related.forEach(line => {
+            line.rev029ScaleMode = mode;
+            line.rev029Normalized = mode === "normalized";
+            line.rev029Locked = mode === "manual";
+          });
+          drawGraph();
+        });
+
+        card.querySelector(".rev029AxisHide").addEventListener("click", () => {
+          const hidden = related.some(line => line.rev029AxisVisible === false);
+          related.forEach(line => line.rev029AxisVisible = hidden);
+          drawGraph();
+        });
+      });
+    }
+
+    function rev029RenderMarkerControls() {
+      const host = document.getElementById("rev029MarkerList");
+      if (!host) return;
+
+      if (!rev029.hMarkers.length) {
+        host.innerHTML = '<div class="rev029-hint">No horizontal markers yet.</div>';
+        return;
+      }
+
+      const axes = rev029GetCurrentAxes();
+      const axisOptions = axes.map(axis =>
+        '<option value="' + escapeHtml(axis.axisId + "||" + axis.panelId) + '">' +
+        escapeHtml(axis.panelTitle + " · " + axis.label + (axis.unit ? " (" + axis.unit + ")" : "")) +
+        '</option>'
+      ).join("");
+
+      host.innerHTML = rev029.hMarkers.map(marker => {
+        const axis = axes.find(item => item.axisId === marker.axisId && item.panelId === marker.panelId);
+        return `
+          <div class="rev029-axis-card" style="border-left-color:${marker.color || "#f6ad55"}" data-marker="${escapeHtml(marker.id)}">
+            <strong>${escapeHtml(marker.label || "Horizontal marker")}</strong>
+            <span>${axis ? escapeHtml(axis.panelTitle + " · " + axis.label + " · " + formatNumber(marker.value) + " " + (axis.unit || "")) : "Axis missing"}</span>
+            <div class="rev029-axis-controls">
+              <input class="rev029MarkerLabel" value="${escapeHtml(marker.label || "")}" title="Marker label">
+              <input class="rev029MarkerValue" type="number" step="0.001" value="${formatNumber(marker.value)}" title="Marker value">
+              <select class="rev029MarkerAxis">${axisOptions}</select>
+              <button class="rev029MarkerDelete" type="button">Delete</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      host.querySelectorAll(".rev029-axis-card").forEach(card => {
+        const marker = rev029.hMarkers.find(item => item.id === card.dataset.marker);
+        if (!marker) return;
+
+        const axisSelect = card.querySelector(".rev029MarkerAxis");
+        axisSelect.value = marker.axisId + "||" + marker.panelId;
+
+        card.querySelector(".rev029MarkerLabel").addEventListener("change", event => {
+          marker.label = event.target.value;
+          drawGraph();
+        });
+
+        card.querySelector(".rev029MarkerValue").addEventListener("change", event => {
+          const value = Number(event.target.value);
+          if (Number.isFinite(value)) {
+            marker.value = value;
+            drawGraph();
+          }
+        });
+
+        axisSelect.addEventListener("change", event => {
+          const [axisId, panelId] = event.target.value.split("||");
+          marker.axisId = axisId;
+          marker.panelId = panelId;
+          drawGraph();
+        });
+
+        card.querySelector(".rev029MarkerDelete").addEventListener("click", () => {
+          rev029.hMarkers = rev029.hMarkers.filter(item => item.id !== marker.id);
+          drawGraph();
+        });
+      });
+    }
+
+    function rev029CursorRows() {
+      if (!rulerCursors.initialized || !graphBounds) return [];
+      const xCol = els.xColumn.value || "__rowNumber";
+      const xA = rulerCursors.vA.value;
+      const xB = rulerCursors.vB.value;
+
+      return graphLines.filter(line => line.visible).map(line => {
+        rev029ApplyDefaultLineConfig(line, false);
+        const series = getSeries(xCol, line.column);
+        const a = rev029NearestSeriesValue(series, xA);
+        const b = rev029NearestSeriesValue(series, xB);
+        const axis = rev029GetLineAxis(line);
+        const panelTitle = (rev029.panelMeta[line.rev029PanelId] && rev029.panelMeta[line.rev029PanelId].title) || line.rev029PanelId || "Main Overlay";
+        const delta = Number.isFinite(a) && Number.isFinite(b) ? b - a : NaN;
+        return {
+          line,
+          channel: line.column,
+          panel: panelTitle,
+          axis: axis.label,
+          unit: line.rev029Unit || axis.unit || "",
+          a,
+          b,
+          delta
+        };
+      });
+    }
+
+    function rev029NearestSeriesValue(series, targetX) {
+      if (!series || !series.length) return NaN;
+      let closest = series[0];
+      let distance = Math.abs(series[0].x - targetX);
+      for (let i = 1; i < series.length; i++) {
+        const d = Math.abs(series[i].x - targetX);
+        if (d < distance) {
+          closest = series[i];
+          distance = d;
+        }
+      }
+      return closest.y;
+    }
+
+    function rev029RenderCursorTable() {
+      const table = document.getElementById("rev029CursorTable");
+      const meta = document.getElementById("rev029CursorMeta");
+      if (!table || !meta) return;
+      const tbody = table.querySelector("tbody");
+      const rows = rev029CursorRows();
+
+      if (!rows.length) {
+        meta.textContent = "Turn on rulers to populate Cursor A/B values.";
+        tbody.innerHTML = '<tr><td colspan="7">No cursor data yet.</td></tr>';
+        return;
+      }
+
+      const deltaX = rulerCursors.vB.value - rulerCursors.vA.value;
+      meta.textContent = "Cursor A: " + formatNumber(rulerCursors.vA.value) +
+        " · Cursor B: " + formatNumber(rulerCursors.vB.value) +
+        " · Δ Time/X: " + formatNumber(deltaX);
+
+      tbody.innerHTML = rows.map(row => `
+        <tr>
+          <td><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:${row.line.color};margin-right:7px;"></span>${escapeHtml(row.channel)}</td>
+          <td>${escapeHtml(row.panel)}</td>
+          <td>${escapeHtml(row.axis)}</td>
+          <td class="num">${formatNumber(row.a)}</td>
+          <td class="num">${formatNumber(row.b)}</td>
+          <td class="num">${formatSigned(row.delta)}</td>
+          <td>${escapeHtml(row.unit)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function rev029VisibleXRange() {
+      if (zoomRange) return { minX: zoomRange.minX, maxX: zoomRange.maxX };
+      if (rulerCursors.initialized && Number.isFinite(rulerCursors.vA.value) && Number.isFinite(rulerCursors.vB.value)) {
+        return {
+          minX: Math.min(rulerCursors.vA.value, rulerCursors.vB.value),
+          maxX: Math.max(rulerCursors.vA.value, rulerCursors.vB.value)
+        };
+      }
+      const xCol = els.xColumn.value || "__rowNumber";
+      const all = graphLines.filter(line => line.visible).flatMap(line => getSeries(xCol, line.column).map(point => point.x));
+      if (!all.length) return null;
+      return { minX: Math.min(...all), maxX: Math.max(...all) };
+    }
+
+    function rev029RenderWindowSummary() {
+      const table = document.getElementById("rev029SummaryTable");
+      const meta = document.getElementById("rev029WindowMeta");
+      if (!table || !meta) return;
+      const tbody = table.querySelector("tbody");
+      const range = rev029VisibleXRange();
+      const xCol = els.xColumn.value || "__rowNumber";
+
+      if (!range) {
+        meta.textContent = "Visible range summary will appear after graphing.";
+        tbody.innerHTML = '<tr><td colspan="8">No summary yet.</td></tr>';
+        return;
+      }
+
+      meta.textContent = "Window: " + formatNumber(range.minX) + " to " + formatNumber(range.maxX) +
+        " · Duration/ΔX: " + formatNumber(range.maxX - range.minX);
+
+      const rows = graphLines.filter(line => line.visible).map(line => {
+        const series = getSeries(xCol, line.column).filter(point => point.x >= range.minX && point.x <= range.maxX);
+        const values = series.map(point => point.y).filter(Number.isFinite);
+        const axis = rev029GetLineAxis(line);
+        const panelTitle = (rev029.panelMeta[line.rev029PanelId] && rev029.panelMeta[line.rev029PanelId].title) || line.rev029PanelId || "Main Overlay";
+        if (!values.length) {
+          return { line, panel: panelTitle, axis: axis.label, unit: line.rev029Unit || axis.unit || "", min: NaN, avg: NaN, max: NaN, count: 0 };
+        }
+        return {
+          line,
+          panel: panelTitle,
+          axis: axis.label,
+          unit: line.rev029Unit || axis.unit || "",
+          min: Math.min(...values),
+          avg: values.reduce((sum, value) => sum + value, 0) / values.length,
+          max: Math.max(...values),
+          count: values.length
+        };
+      });
+
+      tbody.innerHTML = rows.map(row => `
+        <tr>
+          <td><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:${row.line.color};margin-right:7px;"></span>${escapeHtml(row.line.column)}</td>
+          <td>${escapeHtml(row.panel)}</td>
+          <td>${escapeHtml(row.axis)}</td>
+          <td class="num">${formatNumber(row.min)}</td>
+          <td class="num">${formatNumber(row.avg)}</td>
+          <td class="num">${formatNumber(row.max)}</td>
+          <td>${escapeHtml(row.unit)}</td>
+          <td class="num">${row.count}</td>
+        </tr>
+      `).join("");
+    }
+
+    function rev029CaptureMeasurement() {
+      if (!parsedData.length || !graphLines.length) {
+        setGraphStatus("Load CSV data and add lines before capturing measurement.", "warn");
+        return;
+      }
+
+      ensureRulersInitialized();
+      const capture = {
+        id: rev029.captures.length + 1,
+        timestamp: new Date().toLocaleString(),
+        cursorRows: rev029CursorRows(),
+        summaryRange: rev029VisibleXRange()
+      };
+      rev029.captures.push(capture);
+      rev029RenderCaptures();
+      setGraphStatus("Captured measurement #" + capture.id + ".", "good");
+    }
+
+    function rev029RenderCaptures() {
+      const host = document.getElementById("rev029CaptureList");
+      if (!host) return;
+
+      if (!rev029.captures.length) {
+        host.innerHTML = '<div class="rev029-hint">No captured measurements yet.</div>';
+        return;
+      }
+
+      host.innerHTML = rev029.captures.map(capture => `
+        <div class="rev029-capture">
+          <h4>Capture #${capture.id} · ${escapeHtml(capture.timestamp)}</h4>
+          <div class="rev029-hint">A/B channel values captured from current rulers.</div>
+          <div class="rev029-table-wrap">
+            <table class="rev029-table">
+              <thead><tr><th>Channel</th><th>A</th><th>B</th><th>Delta</th><th>Unit</th></tr></thead>
+              <tbody>
+                ${capture.cursorRows.map(row => `
+                  <tr>
+                    <td>${escapeHtml(row.channel)}</td>
+                    <td class="num">${formatNumber(row.a)}</td>
+                    <td class="num">${formatNumber(row.b)}</td>
+                    <td class="num">${formatSigned(row.delta)}</td>
+                    <td>${escapeHtml(row.unit)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function rev029ApplyP051BPreset() {
+      if (!headers.length || !parsedData.length) {
+        setGraphStatus("Load a CSV before applying the P051B preset.", "warn");
+        return;
+      }
+
+      const matches = {
+        crankVolt: rev029FindColumn([/crankcase.*pressure.*sensor.*voltage/i, /crankcase.*sensor.*circuit.*input/i, /crankcase.*volt/i]),
+        crankPressure: rev029FindColumn([/crankcase.*pressure.*gauge.*measured/i, /crankcase.*pressure.*measured/i, /crankcase.*pressure/i]),
+        rpm: rev029FindColumn([/engine.*rpm/i, /\brpm\b/i, /engine speed/i]),
+        map: rev029FindColumn([/intake.*manifold.*absolute/i, /\bmap\b/i, /manifold absolute/i]),
+        boost: rev029FindColumn([/\bboost\b/i, /boost.*pressure/i]),
+        load: rev029FindColumn([/calculated.*load/i, /engine.*load/i, /\bload\b/i]),
+        stft: rev029FindColumn([/stft.*bank 1/i, /short.*term.*fuel.*trim.*bank 1/i, /\bstft\b/i]),
+        ltft: rev029FindColumn([/ltft.*bank 1/i, /long.*term.*fuel.*trim.*bank 1/i, /\bltft\b/i]),
+        maf: rev029FindColumn([/\bmaf\b/i, /mass.*air.*flow/i])
+      };
+
+      graphLines.forEach(line => line.visible = false);
+
+      const addPresetLine = (column, panelId, axisId, axisLabel, unit, min, max, side, color) => {
+        if (!column) return;
+        let line = graphLines.find(existing => existing.column === column);
+        if (!line) {
+          line = { id: makeId(), column, color, visible: true };
+          graphLines.push(line);
+        }
+        line.visible = true;
+        line.color = color || line.color || defaultPalette[graphLines.length % defaultPalette.length];
+        line.rev029PanelId = panelId;
+        line.rev029AxisId = axisId;
+        line.rev029AxisLabel = axisLabel;
+        line.rev029Unit = unit;
+        line.rev029ManualMin = min;
+        line.rev029ManualMax = max;
+        line.rev029AxisSide = side;
+        line.rev029ScaleMode = "manual";
+        line.rev029Locked = true;
+        line.rev029AxisVisible = true;
+        line.rev029Normalized = false;
+      };
+
+      addPresetLine(matches.crankVolt, "panel-crankcase", "axis-voltage", "Voltage", "V", 0, 5, "left", "#22b75b");
+      addPresetLine(matches.crankPressure, "panel-crankcase", "axis-crankcase-inhg", "Crankcase Pressure", "inHg", -2, 2, "right", "#f6ad55");
+      addPresetLine(matches.rpm, "panel-crankcase", "axis-rpm-crankcase", "RPM", "RPM", 0, 5500, "right", "#2f80dc");
+
+      addPresetLine(matches.map, "panel-breathing", "axis-map-inhg", "MAP Absolute", "inHg", 0, 45, "left", "#7b3fb3");
+      addPresetLine(matches.boost, "panel-breathing", "axis-boost-psi", "Boost", "psi", -15, 20, "right", "#4fd1c5");
+      addPresetLine(matches.load, "panel-breathing", "axis-load-percent", "Calculated Load", "%", 0, 100, "right", "#fc8181");
+      addPresetLine(matches.rpm, "panel-breathing", "axis-rpm-breathing", "RPM", "RPM", 0, 5500, "right", "#2f80dc");
+
+      addPresetLine(matches.stft, "panel-fuel", "axis-fuel-trim-percent", "Fuel Trim", "%", -25, 25, "left", "#68d391");
+      addPresetLine(matches.ltft, "panel-fuel", "axis-fuel-trim-percent", "Fuel Trim", "%", -25, 25, "left", "#9ae6b4");
+      addPresetLine(matches.maf, "panel-fuel", "axis-maf-gps", "MAF", "g/s", 0, 100, "right", "#f687b3");
+      addPresetLine(matches.rpm, "panel-fuel", "axis-rpm-fuel", "RPM", "RPM", 0, 5500, "right", "#2f80dc");
+
+      rev029.hMarkers = [
+        { id: makeId(), panelId: "panel-crankcase", axisId: "axis-voltage", value: 0, label: "0 V", color: "#22b75b", visible: true },
+        { id: makeId(), panelId: "panel-crankcase", axisId: "axis-voltage", value: 2.5, label: "2.5 V midpoint", color: "#22b75b", visible: true },
+        { id: makeId(), panelId: "panel-crankcase", axisId: "axis-voltage", value: 5, label: "5 V", color: "#22b75b", visible: true },
+        { id: makeId(), panelId: "panel-crankcase", axisId: "axis-crankcase-inhg", value: 0, label: "0 inHg", color: "#f6ad55", visible: true },
+        { id: makeId(), panelId: "panel-crankcase", axisId: "axis-crankcase-inhg", value: -0.5, label: "-0.5 inHg vacuum ref", color: "#f6ad55", visible: true },
+        { id: makeId(), panelId: "panel-breathing", axisId: "axis-boost-psi", value: 0, label: "0 psi boost", color: "#4fd1c5", visible: true },
+        { id: makeId(), panelId: "panel-breathing", axisId: "axis-load-percent", value: 80, label: "80% load", color: "#fc8181", visible: true },
+        { id: makeId(), panelId: "panel-fuel", axisId: "axis-fuel-trim-percent", value: 0, label: "0% trim", color: "#68d391", visible: true },
+        { id: makeId(), panelId: "panel-fuel", axisId: "axis-fuel-trim-percent", value: 10, label: "+10% trim", color: "#68d391", visible: true },
+        { id: makeId(), panelId: "panel-fuel", axisId: "axis-fuel-trim-percent", value: -10, label: "-10% trim", color: "#68d391", visible: true }
+      ];
+
+      resetRulerState();
+      zoomRange = null;
+      renderSeriesList();
+      renderNotesList();
+      drawGraph();
+
+      const missing = Object.entries(matches).filter(([, value]) => !value).map(([key]) => key);
+      if (missing.length) {
+        setGraphStatus("P051B preset applied. Missing channels: " + missing.join(", ") + ".", "warn");
+      } else {
+        setGraphStatus("P051B Crankcase Inspection preset applied.", "good");
+      }
+    }
+
+    function rev029FindColumn(patterns) {
+      const graphable = headers.filter(column => column === "__rowNumber" || columnHasNumbers(column));
+      for (const pattern of patterns) {
+        const found = graphable.find(column => pattern.test(column));
+        if (found) return found;
+      }
+      return null;
+    }
+
+    const rev029OriginalDrawRulerBubble = drawRulerBubble;
+    drawRulerBubble = function rev029DrawRulerBubble(ctx, x, y, text, color, align) {
+      if (!graphBounds) return rev029OriginalDrawRulerBubble(ctx, x, y, text, color, align);
+      ctx.font = "bold 12px Arial";
+      const paddingX = 8;
+      const height = 23;
+      const width = ctx.measureText(text).width + paddingX * 2;
+      const plotRight = graphBounds.pad.left + graphBounds.chartW;
+      const plotBottom = graphBounds.pad.top + graphBounds.chartH;
+      const plotLeft = graphBounds.pad.left;
+      const plotTop = graphBounds.pad.top;
+
+      const baseX = align === "right" ? x - width : x;
+      const candidates = [
+        { x: baseX, y },
+        { x: baseX, y: y + 30 },
+        { x: x - width - 14, y },
+        { x: x + 14, y },
+        { x: plotRight - width - 5, y: plotTop + 5 },
+        { x: plotLeft + 5, y: plotBottom - height - 5 }
+      ];
+
+      let bx = baseX;
+      let by = y;
+      for (const c of candidates) {
+        const cx = clamp(c.x, plotLeft + 4, plotRight - width - 4);
+        const cy = clamp(c.y, plotTop + 4, plotBottom - height - 4);
+        bx = cx;
+        by = cy;
+        break;
+      }
+
+      ctx.fillStyle = color;
+      roundRect(ctx, bx, by, width, height, 7);
+      ctx.fill();
+
+      ctx.strokeStyle = hexToRgba(getCss("--chart-bg", "#ffffff"), .85);
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+
+      ctx.fillStyle = readableTextColor(color);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, bx + paddingX, by + height / 2 + .5);
+    };
+
+    const rev029OriginalZoomToRulerRange = zoomToRulerRange;
+    zoomToRulerRange = function rev029ZoomToRulerRange() {
+      if (!graphBounds) return;
+      ensureRulersInitialized();
+      const minX = Math.min(rulerCursors.vA.value, rulerCursors.vB.value);
+      const maxX = Math.max(rulerCursors.vA.value, rulerCursors.vB.value);
+      if (Math.abs(maxX - minX) < .001) {
+        setGraphStatus("Move X-A and X-B apart before zooming to rulers.", "warn");
+        return;
+      }
+      pushZoomRange({ minX, maxX, minY: graphBounds.minY, maxY: graphBounds.maxY });
+      if (rev029.autoScaleYAfterZoom) {
+        graphLines.forEach(line => {
+          line.rev029ScaleMode = "visibleRange";
+          line.rev029Locked = false;
+        });
+      }
+      drawGraph();
+    };
+
+    const rev029OriginalRenderTrackingTable = renderTrackingTable;
+    renderTrackingTable = function rev029RenderTrackingTable() {
+      if (!els.trackingTable || !els.trackingTableWrap) return;
+
+      els.trackingTableWrap.style.display = els.showTrackingTable && els.showTrackingTable.checked ? "" : "none";
+      const tbody = els.trackingTable.querySelector("tbody");
+      tbody.innerHTML = "";
+
+      if (!els.showTrackingTable || !els.showTrackingTable.checked) return;
+
+      const rows = rev029CursorRows();
+      if (!parsedData.length || !rows.length || !rulerCursors.initialized) {
+        tbody.innerHTML = '<tr><td colspan="5">Turn on rulers and add graph lines.</td></tr>';
+        return;
+      }
+
+      rows.forEach(row => {
+        const percent = Number.isFinite(row.delta) && row.a !== 0 ? (row.delta / Math.abs(row.a)) * 100 : NaN;
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          '<td><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:' + row.line.color + ';margin-right:7px;"></span>' + escapeHtml(row.channel) + '</td>' +
+          '<td>' + formatNumber(row.a) + (row.unit ? " " + escapeHtml(row.unit) : "") + '</td>' +
+          '<td>' + formatNumber(row.b) + (row.unit ? " " + escapeHtml(row.unit) : "") + '</td>' +
+          '<td>' + formatSigned(row.delta) + (row.unit ? " " + escapeHtml(row.unit) : "") + '</td>' +
+          '<td>' + formatSigned(percent) + '%</td>';
+        tbody.appendChild(tr);
+      });
+    };
+
+    const rev029OriginalBuildDiagnosticsReport = buildDiagnosticsReport;
+    buildDiagnosticsReport = function rev029BuildDiagnosticsReport(snapshot, tests) {
+      const safeSnapshot = snapshot || captureDiagnosticsSnapshot();
+      const safeTests = tests || runDiagnosticsSelfTests(safeSnapshot);
+      const base = rev029OriginalBuildDiagnosticsReport
+        ? rev029OriginalBuildDiagnosticsReport(safeSnapshot, safeTests)
+        : "";
+      const lines = [];
+      lines.push("");
+      lines.push("REV 029 MULTI-AXIS / MEASUREMENT ADDENDUM");
+      lines.push("- Multi-axis enabled: true");
+      lines.push("- Panels: " + rev029.panels.length);
+      lines.push("- Horizontal markers: " + rev029.hMarkers.length);
+      lines.push("- Captured measurements: " + rev029.captures.length);
+      lines.push("- Auto-scale Y after zoom: " + rev029.autoScaleYAfterZoom);
+      lines.push("");
+      lines.push("CURSOR A/B CHANNEL VALUES");
+      rev029CursorRows().forEach(row => {
+        lines.push("- " + row.channel + ": A " + formatNumber(row.a) + " " + row.unit +
+          ", B " + formatNumber(row.b) + " " + row.unit +
+          ", Δ " + formatSigned(row.delta) + " " + row.unit);
+      });
+      lines.push("");
+      lines.push("VISIBLE WINDOW SUMMARY");
+      const range = rev029VisibleXRange();
+      if (range) lines.push("- Window: " + formatNumber(range.minX) + " to " + formatNumber(range.maxX));
+      rev029GetCurrentAxes().forEach(axis => {
+        lines.push("- Axis " + axis.panelTitle + " / " + axis.label + ": " +
+          formatNumber(axis.min) + " to " + formatNumber(axis.max) + " " + (axis.unit || ""));
+      });
+      return base + "\n" + lines.join("\n");
+    };
+
+    drawGraph = rev029DrawGraph;
+
+    rev029InstallStyles();
+    rev029InstallWorkspace();
+
 
     applyTheme();
     renderSeriesList();
