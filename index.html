@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PoppeScope OBD Workstation REV 029F</title>
+  <title>PoppeScope OBD Workstation REV 029G</title>
   <style>
     :root {
       color-scheme: dark;
@@ -1309,7 +1309,7 @@
 
 
 
-    /* REV 029F: hover-pop waveform trace highlighting */
+    /* REV 029G: hover-pop waveform and measurement table highlighting */
     .legend-item.hovered {
       color: var(--text);
       border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-strong));
@@ -1340,7 +1340,38 @@
     }
 
 
-    /* REV 029F: measurement cockpit first-class workspace + richer evidence capture */
+    /* REV 029G: measurement-table hover linking back to graph traces */
+    .rev029-table-wrap tbody tr[data-channel],
+    #cursorTable tbody tr[data-channel] {
+      cursor: pointer;
+      transition: background .10s ease, color .10s ease, box-shadow .10s ease, transform .10s ease;
+    }
+
+    .rev029-table-wrap tbody tr[data-channel]:hover,
+    .rev029-table-wrap tbody tr[data-channel].row-hovered,
+    #cursorTable tbody tr[data-channel]:hover,
+    #cursorTable tbody tr[data-channel].row-hovered {
+      color: var(--text);
+      background: color-mix(in srgb, var(--panel-3) 62%, transparent);
+      box-shadow: inset 4px 0 0 var(--row-color, var(--accent-2)), inset 0 0 0 1px color-mix(in srgb, var(--accent-2) 20%, transparent);
+      transform: translateX(1px);
+    }
+
+    .rev029-table-wrap tbody tr[data-channel].row-hovered td:first-child,
+    #cursorTable tbody tr[data-channel].row-hovered td:first-child {
+      color: var(--row-color, var(--accent-2));
+      font-weight: 950;
+      text-shadow: 0 0 12px color-mix(in srgb, var(--row-color, var(--accent-2)) 38%, transparent);
+    }
+
+    .rev029-table-wrap tbody tr[data-channel].row-hovered td:first-child::before,
+    #cursorTable tbody tr[data-channel].row-hovered td:first-child::before {
+      content: "▶ ";
+      color: var(--row-color, var(--accent-2));
+    }
+
+
+    /* REV 029G: measurement cockpit first-class workspace + richer evidence capture */
     body.rev029-scroll .dock {
       position: relative;
       border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
@@ -1479,7 +1510,7 @@
     <div class="brand">
       <div class="brand-mark">〰</div>
       <div>
-        <h1>PoppeScope OBD Workstation <span class="muted">REV 029F</span></h1>
+        <h1>PoppeScope OBD Workstation <span class="muted">REV 029G</span></h1>
         <p>Static CSV waveform review · screen-fit graph cockpit · draggable rulers · measurement cockpit · hover-pop traces · easy PID toggles · auto-fit axes</p>
       </div>
     </div>
@@ -1794,7 +1825,7 @@
         <div class="report-box" id="reportText">No report generated yet.</div>
       </div>
       <div class="modal-foot">
-        <span>PoppeScope REV 029F · Static CSV waveform review workstation</span>
+        <span>PoppeScope REV 029G · Static CSV waveform review workstation</span>
         <span id="modalHealthFoot">No data</span>
       </div>
     </div>
@@ -2023,7 +2054,7 @@
       el.cursorABtn.addEventListener("click", () => activateCursorTarget("a"));
       el.cursorBBtn.addEventListener("click", () => activateCursorTarget("b"));
       el.zoomToCursorsBtn.addEventListener("click", zoomToCursors);
-      el.autoScaleBtn.addEventListener("click", () => { state.channels.forEach(c => { c.scale = "auto"; c.manualMin = ""; c.manualMax = ""; }); renderChannels(); drawGraph(); });
+      el.autoScaleBtn.addEventListener("click", () => { state.yZoom = null; state.channels.forEach(c => { c.scale = "auto"; c.manualMin = ""; c.manualMax = ""; }); renderChannels(); drawGraph(); });
       if (el.graphSizeBtn) el.graphSizeBtn.addEventListener("click", toggleGraphSize);
       const waveHead = document.querySelector(".wave-head");
       if (waveHead) waveHead.addEventListener("dblclick", toggleGraphSize);
@@ -2034,6 +2065,7 @@
       el.waveCanvas.addEventListener("pointerleave", handleCanvasLeave);
       el.waveCanvas.addEventListener("wheel", handleCanvasWheel, { passive: false });
       el.waveCanvas.addEventListener("dblclick", handleCanvasDoubleClick);
+      bindMeasurementTableHover();
       window.addEventListener("pointerup", handleCanvasUp);
       window.addEventListener("pointercancel", handleCanvasCancel);
       window.addEventListener("resize", debounce(() => { syncRev029DViewport(); drawGraph(); }, 90));
@@ -2105,6 +2137,71 @@
 
     function shouldIgnorePointer(event) {
       return event && event.pointerId !== undefined && state.activePointerId !== undefined && state.activePointerId !== null && event.pointerId !== state.activePointerId;
+    }
+
+    function bindMeasurementTableHover() {
+      [el.cursorTable, el.rev029CursorTable, el.rev029SummaryTable].filter(Boolean).forEach(table => {
+        table.addEventListener("mouseover", handleMeasurementTableHover);
+        table.addEventListener("mouseout", handleMeasurementTableOut);
+        table.addEventListener("mouseleave", clearMeasurementTableHover);
+      });
+    }
+
+    function handleMeasurementTableHover(event) {
+      const row = event.target && event.target.closest ? event.target.closest("tr[data-channel]") : null;
+      if (!row || !event.currentTarget.contains(row)) return;
+      const channelName = row.dataset.channel;
+      if (!channelName) return;
+      setMeasurementTableHover(channelName);
+    }
+
+    function handleMeasurementTableOut(event) {
+      const row = event.target && event.target.closest ? event.target.closest("tr[data-channel]") : null;
+      if (!row || !event.currentTarget.contains(row)) return;
+      if (event.relatedTarget && row.contains(event.relatedTarget)) return;
+      // Keep the hover active if the pointer is still inside another row for the same channel.
+      const nextRow = event.relatedTarget && event.relatedTarget.closest ? event.relatedTarget.closest("tr[data-channel]") : null;
+      if (nextRow && nextRow.dataset.channel === row.dataset.channel) return;
+      if (!nextRow || !event.currentTarget.contains(nextRow)) clearMeasurementTableHover();
+    }
+
+    function setMeasurementTableHover(channelName) {
+      rev029AssignDefaultsToChannels();
+      const ch = state.channels.find(c => c.name === channelName);
+      if (!ch) return;
+      const panelId = ch.rev029PanelId || "panel-review";
+      const axisId = ch.rev029AxisId || rev029DefaultAxisId(ch, panelId);
+      state.hoverTrace = {
+        channelName: ch.name,
+        channelId: ch.id,
+        panelId,
+        axisId,
+        color: ch.color,
+        unit: ch.unit || "",
+        source: "table",
+        distance: 0
+      };
+      syncMeasurementRowHover();
+      renderLegend();
+      drawGraph();
+    }
+
+    function clearMeasurementTableHover() {
+      if (state.hoverTrace && state.hoverTrace.source === "table") {
+        state.hoverTrace = null;
+        syncMeasurementRowHover();
+        renderLegend();
+        drawGraph();
+      }
+    }
+
+    function syncMeasurementRowHover() {
+      const hotName = state.hoverTrace && state.hoverTrace.channelName;
+      document.querySelectorAll("tr[data-channel]").forEach(row => {
+        const ch = state.channels.find(c => c.name === row.dataset.channel);
+        if (ch) row.style.setProperty("--row-color", ch.color || cssVar("--accent-2", "#59ffa9"));
+        row.classList.toggle("row-hovered", !!hotName && row.dataset.channel === hotName);
+      });
     }
 
     function handleCanvasCancel(event) {
@@ -2275,6 +2372,7 @@
       state.rev029.layoutCache = null;
       state.cursors = { a: null, b: null, yA: null, yB: null, target: "a", dragging: null, show: true, snap: true };
       state.zoom = null;
+      state.yZoom = null;
       state.hover = null;
       state.parseStats = {
         physicalLines: physicalLines.length,
@@ -2871,6 +2969,7 @@
       renderRulerReadout();
       renderCursorTable();
       renderWindowSummary();
+      syncMeasurementRowHover();
     }
 
 
@@ -2897,7 +2996,7 @@
         const b = interpolateChannel(ch.name, state.cursors.b);
         const delta = a !== null && b !== null ? b - a : null;
         const pct = a !== null && b !== null && Math.abs(a) > 1e-9 ? (delta / a) * 100 : null;
-        return `<tr><td style="color:${escapeAttr(ch.color)}">${escapeHtml(ch.name)}</td><td>${formatNum(a)}</td><td>${formatNum(b)}</td><td>${formatSigned(delta)}</td><td>${pct === null ? "—" : formatSigned(pct) + "%"}</td></tr>`;
+        return `<tr data-channel="${escapeAttr(ch.name)}" style="--row-color:${escapeAttr(ch.color)}"><td style="color:${escapeAttr(ch.color)}">${escapeHtml(ch.name)}</td><td>${formatNum(a)}</td><td>${formatNum(b)}</td><td>${formatSigned(delta)}</td><td>${pct === null ? "—" : formatSigned(pct) + "%"}</td></tr>`;
       }).join("");
       el.cursorTable.querySelector("tbody").innerHTML = rows;
     }
@@ -2925,7 +3024,10 @@
 
     function resetView() {
       state.zoom = null;
+      state.yZoom = null;
       state.hover = null;
+      state.hoverTrace = null;
+      syncMeasurementRowHover();
       drawGraph();
       renderDock();
     }
@@ -3035,7 +3137,8 @@
 
       const xRange = getVisibleXRange();
       const series = visible.map(ch => makeSeries(ch, xRange)).filter(s => s.points.length >= 2);
-      const yRange = computeYRange(series);
+      const computedYRange = computeYRange(series);
+      const yRange = state.yZoom || computedYRange;
       state.fullYRange = yRange;
       if (state.cursors.show) ensureRulersInitialized();
       drawGrid(ctx, plot, xRange, yRange);
@@ -3297,6 +3400,67 @@
       ctx.restore();
     }
 
+    function getActivePlotAtPoint(pt) {
+      if (state.rev029 && state.rev029.enabled && state.rev029.layoutCache) {
+        const panel = (state.rev029.layoutCache.panels || []).find(p => p.plot && isInsidePlotPoint(pt, p.plot));
+        if (panel) return { plot: panel.plot, panel };
+      }
+      return state.plot && isInsidePlotPoint(pt, state.plot) ? { plot: state.plot, panel: null } : null;
+    }
+
+    function getDragYRangeForPlot(plot) {
+      if (state.rev029 && state.rev029.enabled) return null;
+      return state.yZoom || state.fullYRange || getVisibleYRangeEstimate();
+    }
+
+    function applyZoomBoxFromDrag(drag) {
+      if (!drag || drag.kind !== "zoom" || !drag.start || !drag.current || !drag.plotStart) return false;
+      const dx = Math.abs(drag.current.x - drag.start.x);
+      const dy = Math.abs(drag.current.y - drag.start.y);
+      if (dx <= 14 && dy <= 14) return false;
+      const xRange = drag.xRangeStart || getVisibleXRange();
+      if (dx > 14) {
+        const a = screenToDataX(drag.start.x, drag.plotStart, xRange);
+        const b = screenToDataX(drag.current.x, drag.plotStart, xRange);
+        state.zoom = { min: Math.min(a, b), max: Math.max(a, b) };
+        clampZoom();
+      }
+      if (dy > 14) {
+        if (state.rev029 && state.rev029.enabled) {
+          applyRev029YZoomFromBox(drag);
+        } else {
+          const yRange = drag.yRangeStart || state.fullYRange || getVisibleYRangeEstimate();
+          const ya = screenToDataY(drag.start.y, drag.plotStart, yRange);
+          const yb = screenToDataY(drag.current.y, drag.plotStart, yRange);
+          const min = Math.min(ya, yb);
+          const max = Math.max(ya, yb);
+          if (Number.isFinite(min) && Number.isFinite(max) && max > min) state.yZoom = { min, max };
+        }
+      } else if (state.rev029 && state.rev029.autoYAfterZoom) {
+        rev029FitVisibleAxes(false);
+      }
+      return true;
+    }
+
+    function applyRev029YZoomFromBox(drag) {
+      if (!state.rev029 || !state.rev029.layoutCache || !drag.panelIdStart) return;
+      const panel = state.rev029.layoutCache.panels.find(p => p.id === drag.panelIdStart);
+      if (!panel || !panel.plot) return;
+      const yTop = Math.min(drag.start.y, drag.current.y);
+      const yBottom = Math.max(drag.start.y, drag.current.y);
+      panel.axisIds.forEach(axisId => {
+        const axis = state.rev029.axes[axisId] || (state.rev029.layoutCache.axes || {})[axisId];
+        if (!axis) return;
+        const max = rev029YToValue(yTop, axis, panel.plot);
+        const min = rev029YToValue(yBottom, axis, panel.plot);
+        if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
+          axis.min = min;
+          axis.max = max;
+          axis.locked = true;
+        }
+      });
+    }
+
     function handleCanvasMove(event) {
       if (shouldIgnorePointer(event)) return;
       if (!state.plot || !state.rows.length) return;
@@ -3326,7 +3490,8 @@
         state.drag.current = pt;
         if (state.drag.kind === "pan") {
           const dx = pt.x - state.drag.last.x;
-          const delta = -dx / state.plot.width * (xRange.max - xRange.min);
+          const panPlot = state.drag.plotStart || state.plot;
+          const delta = -dx / Math.max(1, panPlot.width) * (xRange.max - xRange.min);
           state.zoom = { min: xRange.min + delta, max: xRange.max + delta };
           clampZoom();
           state.drag.last = pt;
@@ -3348,7 +3513,8 @@
       if (!state.plot || !state.rows.length) return;
       const pt = getCanvasPoint(event);
       const xRange = getVisibleXRange();
-      if (!isInsidePlotPoint(pt, state.plot)) return;
+      const activePlot = getActivePlotAtPoint(pt);
+      if (!activePlot) return;
       event.preventDefault();
       captureCanvasPointer(event);
       const markerHit = hitRev029Marker(pt);
@@ -3374,11 +3540,20 @@
         }
         return;
       }
+      const dragBase = {
+        start: pt,
+        current: pt,
+        last: pt,
+        plotStart: { ...activePlot.plot },
+        xRangeStart: { ...xRange },
+        yRangeStart: getDragYRangeForPlot(activePlot.plot),
+        panelIdStart: activePlot.panel ? activePlot.panel.id : null
+      };
       if (event.shiftKey || event.button === 1) {
-        state.drag = { kind: "pan", start: pt, current: pt, last: pt };
+        state.drag = { kind: "pan", ...dragBase };
         setCanvasCursor("pan");
       } else {
-        state.drag = { kind: "zoom", start: pt, current: pt };
+        state.drag = { kind: "zoom", ...dragBase };
         setCanvasCursor("zoom");
       }
     }
@@ -3392,14 +3567,8 @@
       const drag = state.drag;
       state.drag = null;
       if (drag.kind === "zoom") {
-        const dx = Math.abs(drag.current.x - drag.start.x);
-        if (dx > 14) {
-          const xRange = getVisibleXRange();
-          let a = screenToDataX(drag.start.x, state.plot, xRange);
-          let b = screenToDataX(drag.current.x, state.plot, xRange);
-          state.zoom = { min: Math.min(a, b), max: Math.max(a, b) };
-          clampZoom();
-        }
+        const didZoom = applyZoomBoxFromDrag(drag);
+        if (didZoom && (state.zoom || state.yZoom || (state.rev029 && drag.panelIdStart))) showToast("Zoomed to selected graph area.", "good");
       }
       setCanvasCursor("normal");
       drawGraph(); renderDock();
@@ -3410,6 +3579,8 @@
       setCanvasCursor("normal");
       el.hoverTip.style.display = "none";
       state.hover = null;
+      state.hoverTrace = null;
+      syncMeasurementRowHover();
       drawGraph(); renderDock();
     }
 
@@ -3664,7 +3835,7 @@
     function buildReport() {
       const lines = [];
       lines.push("POPPE SCOPE OBD WORKSTATION - DIAGNOSTIC REVIEW REPORT");
-      lines.push("Revision: REV 029F");
+      lines.push("Revision: REV 029G");
       lines.push("Generated: " + new Date().toLocaleString() + " (" + new Date().toISOString() + ")");
       lines.push("Mode: Static post-capture CSV review. No live capture, no sensor communication, no hardware connection.");
       lines.push("");
@@ -3825,7 +3996,7 @@
 
     function downloadJsonSummary() {
       const payload = {
-        revision: "REV 029F",
+        revision: "REV 029G",
         generated: new Date().toISOString(),
         fileName: state.fileName,
         rows: state.rows.length,
@@ -4244,7 +4415,8 @@
       }
       ctx.restore();
 
-      state.plot = { left: Math.min(...panels.map(p => p.plot.left)), right: Math.max(...panels.map(p => p.plot.right)), top: panels[0].plot.top, bottom: panels[panels.length - 1].plot.bottom, width: width - 120, height: panels[panels.length - 1].plot.bottom - panels[0].plot.top };
+      state.plot = { left: Math.min(...panels.map(p => p.plot.left)), right: Math.max(...panels.map(p => p.plot.right)), top: panels[0].plot.top, bottom: panels[panels.length - 1].plot.bottom, width: Math.max(80, Math.max(...panels.map(p => p.plot.right)) - Math.min(...panels.map(p => p.plot.left))), height: panels[panels.length - 1].plot.bottom - panels[0].plot.top };
+      if (state.drag && state.drag.kind === "zoom" && state.drag.start && state.drag.current) drawZoomBox(ctx, state.drag.start, state.drag.current);
     }
 
     function drawRev029PanelHeader(ctx, panel, plot, top, width) {
@@ -4532,6 +4704,7 @@
       renderRev029CursorTable();
       renderRev029SummaryTable();
       renderRev029Captures();
+      syncMeasurementRowHover();
       if (el.rev029ReviewSpace) el.rev029ReviewSpace.style.display = state.rows.length ? "grid" : "none";
     }
 
@@ -4588,7 +4761,11 @@
       const body = el.rev029CursorTable.querySelector("tbody");
       const rows = rev029CursorRows();
       if (!rows.length) { body.innerHTML = '<tr><td colspan="7">Set Cursor A/B to show large per-channel values.</td></tr>'; return; }
-      body.innerHTML = rows.map(r => `<tr><td>${escapeHtml(r.channel)}</td><td>${escapeHtml(r.panel)}</td><td>${escapeHtml(r.axis)}</td><td>${formatNum(r.a)}</td><td>${formatNum(r.b)}</td><td>${formatSigned(r.delta)}</td><td>${escapeHtml(r.unit)}</td></tr>`).join("");
+      body.innerHTML = rows.map(r => {
+        const ch = state.channels.find(c => c.name === r.channel);
+        return `<tr data-channel="${escapeAttr(r.channel)}" style="--row-color:${escapeAttr(ch ? ch.color : '#59ffa9')}"><td>${escapeHtml(r.channel)}</td><td>${escapeHtml(r.panel)}</td><td>${escapeHtml(r.axis)}</td><td>${formatNum(r.a)}</td><td>${formatNum(r.b)}</td><td>${formatSigned(r.delta)}</td><td>${escapeHtml(r.unit)}</td></tr>`;
+      }).join("");
+      syncMeasurementRowHover();
     }
 
     function renderRev029SummaryTable() {
@@ -4603,7 +4780,11 @@
         return { channel: ch.name, min: st.min, avg: st.avg, max: st.max, unit: ch.unit || "", count: st.count };
       });
       if (!rows.length) { body.innerHTML = '<tr><td colspan="6">No visible channels.</td></tr>'; return; }
-      body.innerHTML = rows.map(r => `<tr><td>${escapeHtml(r.channel)}</td><td>${formatNum(r.min)}</td><td>${formatNum(r.avg)}</td><td>${formatNum(r.max)}</td><td>${escapeHtml(r.unit)}</td><td>${formatInt(r.count)}</td></tr>`).join("");
+      body.innerHTML = rows.map(r => {
+        const ch = state.channels.find(c => c.name === r.channel);
+        return `<tr data-channel="${escapeAttr(r.channel)}" style="--row-color:${escapeAttr(ch ? ch.color : '#59ffa9')}"><td>${escapeHtml(r.channel)}</td><td>${formatNum(r.min)}</td><td>${formatNum(r.avg)}</td><td>${formatNum(r.max)}</td><td>${escapeHtml(r.unit)}</td><td>${formatInt(r.count)}</td></tr>`;
+      }).join("");
+      syncMeasurementRowHover();
     }
 
     function captureRev029Measurement() {
