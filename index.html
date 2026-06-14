@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PoppeScope OBD Workstation REV 029C</title>
+  <title>PoppeScope OBD Workstation REV 029D</title>
   <style>
     :root {
       color-scheme: dark;
@@ -1048,7 +1048,7 @@
     }
 
 
-    /* REV 029C: screen-fit graph cockpit + full-page measurement scroll
+    /* REV 029D: screen-fit graph cockpit + full-page measurement scroll
        Goal: keep the graph workstation fitting on the first screen like REV 028,
        then put the larger cursor/window/capture sections below it in normal page flow. */
     body.rev029-scroll {
@@ -1170,7 +1170,7 @@
 
   
 
-    /* REV 029C: smoother ruler hit zones, view buttons, and PID quick toggles */
+    /* REV 029D: smoother ruler hit zones, view buttons, and PID quick toggles */
     .commands button.view-active,
     .wave-tools button.view-active,
     .channel-quick-actions button.view-active {
@@ -1200,6 +1200,113 @@
       border-color: color-mix(in srgb, var(--accent-2) 50%, var(--line));
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-2) 12%, transparent);
     }
+
+
+    /* REV 029D: viewport-stable graph shell + easier ruler grabbing
+       Keeps the graph cockpit on-screen while the big measurement tables live below it. */
+    body.rev029-scroll .app {
+      overflow: visible !important;
+    }
+
+    body.rev029-scroll .workspace {
+      height: calc(100dvh - var(--top-h)) !important;
+      max-height: calc(100dvh - var(--top-h)) !important;
+      min-height: 0 !important;
+      overflow: hidden !important;
+      align-items: stretch !important;
+    }
+
+    @supports not (height: 100dvh) {
+      body.rev029-scroll .workspace {
+        height: calc(100vh - var(--top-h)) !important;
+        max-height: calc(100vh - var(--top-h)) !important;
+      }
+    }
+
+    body.rev029-scroll .wave-card {
+      height: 100% !important;
+      min-height: 0 !important;
+      display: grid !important;
+      grid-template-rows: auto minmax(0, 1fr) !important;
+      overflow: hidden !important;
+      resize: vertical;
+    }
+
+    body.rev029-scroll .chart-wrap {
+      min-height: 0 !important;
+      height: auto !important;
+      overflow: hidden !important;
+      grid-template-rows: minmax(220px, 1fr) auto !important;
+    }
+
+    body.rev029-scroll .canvas-shell {
+      min-height: 220px !important;
+      height: auto !important;
+      max-height: 100% !important;
+      overflow: hidden !important;
+      contain: size layout paint;
+    }
+
+    body.rev029-scroll #waveCanvas {
+      min-height: 220px;
+      touch-action: none;
+      user-select: none;
+    }
+
+    body.rev029-scroll .legend-strip {
+      flex: 0 0 auto;
+      max-height: 68px;
+      overflow: auto;
+    }
+
+    body.rev029-scroll .panel {
+      height: 100% !important;
+      min-height: 0 !important;
+      overflow: hidden !important;
+    }
+
+    body.rev029-scroll .panel-body {
+      min-height: 0 !important;
+      overflow: auto !important;
+    }
+
+    body.rev029-scroll.graph-expanded .workspace {
+      height: min(1280px, calc(100dvh - var(--top-h) + 260px)) !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+
+    body.rev029-scroll.graph-expanded .wave-card {
+      min-height: calc(100dvh - var(--top-h) + 220px) !important;
+    }
+
+    .canvas-shell.ruler-hover-x,
+    .canvas-shell.ruler-hover-y,
+    .canvas-shell.ruler-dragging {
+      outline: 1px solid color-mix(in srgb, var(--accent-2) 34%, transparent);
+      outline-offset: -2px;
+    }
+
+    .canvas-shell.ruler-hover-x #waveCanvas { cursor: ew-resize !important; }
+    .canvas-shell.ruler-hover-y #waveCanvas { cursor: ns-resize !important; }
+    .canvas-shell.ruler-dragging #waveCanvas { cursor: grabbing !important; }
+
+    @media (max-width: 980px) {
+      body.rev029-scroll .workspace {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+      }
+      body.rev029-scroll .panel,
+      body.rev029-scroll .wave-card {
+        height: auto !important;
+        overflow: visible !important;
+      }
+      body.rev029-scroll .wave-card {
+        min-height: 620px !important;
+      }
+    }
+
 </style>
 </head>
 <body class="theme-dark">
@@ -1207,7 +1314,7 @@
     <div class="brand">
       <div class="brand-mark">〰</div>
       <div>
-        <h1>PoppeScope OBD Workstation <span class="muted">REV 029C</span></h1>
+        <h1>PoppeScope OBD Workstation <span class="muted">REV 029D</span></h1>
         <p>Static CSV waveform review · screen-fit graph cockpit · draggable rulers · easy PID toggles · auto-fit axes</p>
       </div>
     </div>
@@ -1522,7 +1629,7 @@
         <div class="report-box" id="reportText">No report generated yet.</div>
       </div>
       <div class="modal-foot">
-        <span>PoppeScope REV 029C · Static CSV waveform review workstation</span>
+        <span>PoppeScope REV 029D · Static CSV waveform review workstation</span>
         <span id="modalHealthFoot">No data</span>
       </div>
     </div>
@@ -1536,8 +1643,8 @@
     const CHANNEL_COLORS = ["#ffe45c", "#26d7ff", "#59ffa9", "#ff6dff", "#ff9d3f", "#4fa3ff", "#ff5d73", "#f8fbff", "#a98bff", "#45f3e6"];
     const MAX_AUTO_CHANNELS = 8;
     const LARGE_FILE_DRAW_LIMIT = 900000;
-    const RULER_HIT_RADIUS = 14;
-    const MARKER_HIT_RADIUS = 14;
+    const RULER_HIT_RADIUS = 22;
+    const MARKER_HIT_RADIUS = 20;
 
     const state = {
       fileName: "",
@@ -1699,6 +1806,7 @@
       document.body.classList.add("rev029-scroll");
       bindEvents();
       bindRev029Events();
+      installRev029DViewportFixes();
       drawPlaceholder("Upload a saved CSV capture");
       if (el.scopeViewBtn) el.scopeViewBtn.classList.add("view-active");
       renderAll();
@@ -1751,13 +1859,16 @@
       if (el.graphSizeBtn) el.graphSizeBtn.addEventListener("click", toggleGraphSize);
       const waveHead = document.querySelector(".wave-head");
       if (waveHead) waveHead.addEventListener("dblclick", toggleGraphSize);
-      el.waveCanvas.addEventListener("mousemove", handleCanvasMove);
-      el.waveCanvas.addEventListener("mousedown", handleCanvasDown);
-      el.waveCanvas.addEventListener("mouseup", handleCanvasUp);
-      el.waveCanvas.addEventListener("mouseleave", handleCanvasLeave);
+      el.waveCanvas.addEventListener("pointermove", handleCanvasMove);
+      el.waveCanvas.addEventListener("pointerdown", handleCanvasDown);
+      el.waveCanvas.addEventListener("pointerup", handleCanvasUp);
+      el.waveCanvas.addEventListener("pointercancel", handleCanvasCancel);
+      el.waveCanvas.addEventListener("pointerleave", handleCanvasLeave);
       el.waveCanvas.addEventListener("wheel", handleCanvasWheel, { passive: false });
       el.waveCanvas.addEventListener("dblclick", handleCanvasDoubleClick);
-      window.addEventListener("resize", debounce(() => drawGraph(), 90));
+      window.addEventListener("pointerup", handleCanvasUp);
+      window.addEventListener("pointercancel", handleCanvasCancel);
+      window.addEventListener("resize", debounce(() => { syncRev029DViewport(); drawGraph(); }, 90));
       el.closeReportBtn.addEventListener("click", closeReportModal);
       el.reportModal.addEventListener("click", e => { if (e.target === el.reportModal) closeReportModal(); });
       el.runDebugBtn.addEventListener("click", runDebugConsole);
@@ -1766,6 +1877,76 @@
       el.downloadJsonBtn.addEventListener("click", downloadJsonSummary);
       el.downloadCleanCsvBtn.addEventListener("click", downloadCleanCsv);
       [el.vehicleInput, el.roInput, el.concernInput, el.techNotesInput].forEach(input => input.addEventListener("input", () => { state.lastReport = buildReport(); el.reportText.textContent = state.lastReport; }));
+    }
+
+
+    function installRev029DViewportFixes() {
+      syncRev029DViewport();
+      const redraw = debounce(() => {
+        syncRev029DViewport();
+        drawGraph();
+        renderDock();
+      }, 60);
+      if ("ResizeObserver" in window) {
+        state.rev029dResizeObserver = new ResizeObserver(redraw);
+        [document.querySelector(".topbar"), document.querySelector(".workspace"), document.querySelector(".wave-card"), el.canvasShell]
+          .filter(Boolean)
+          .forEach(node => state.rev029dResizeObserver.observe(node));
+      }
+      if (window.visualViewport) window.visualViewport.addEventListener("resize", redraw);
+      window.addEventListener("orientationchange", redraw);
+    }
+
+    function syncRev029DViewport() {
+      const topbar = document.querySelector(".topbar");
+      const workspace = document.querySelector(".workspace");
+      if (topbar) {
+        const topHeight = Math.ceil(topbar.getBoundingClientRect().height || 60);
+        document.documentElement.style.setProperty("--top-h", topHeight + "px");
+      }
+      if (!workspace) return;
+      if (window.matchMedia && window.matchMedia("(max-width: 980px)").matches) {
+        workspace.style.height = "";
+        workspace.style.maxHeight = "";
+        return;
+      }
+      const topHeight = topbar ? Math.ceil(topbar.getBoundingClientRect().height || 60) : 60;
+      const viewportHeight = Math.round((window.visualViewport && window.visualViewport.height) || window.innerHeight || 800);
+      const available = Math.max(360, viewportHeight - topHeight);
+      workspace.style.height = available + "px";
+      workspace.style.maxHeight = available + "px";
+    }
+
+    function captureCanvasPointer(event) {
+      if (!event || event.pointerId === undefined || !el.waveCanvas.setPointerCapture) return;
+      try {
+        el.waveCanvas.setPointerCapture(event.pointerId);
+        state.activePointerId = event.pointerId;
+      } catch (_) {}
+    }
+
+    function releaseCanvasPointer(event) {
+      if (!event || event.pointerId === undefined || !el.waveCanvas.releasePointerCapture) return;
+      try {
+        if (el.waveCanvas.hasPointerCapture && el.waveCanvas.hasPointerCapture(event.pointerId)) {
+          el.waveCanvas.releasePointerCapture(event.pointerId);
+        }
+      } catch (_) {}
+      state.activePointerId = null;
+    }
+
+    function shouldIgnorePointer(event) {
+      return event && event.pointerId !== undefined && state.activePointerId !== undefined && state.activePointerId !== null && event.pointerId !== state.activePointerId;
+    }
+
+    function handleCanvasCancel(event) {
+      releaseCanvasPointer(event);
+      state.drag = null;
+      state.cursors.dragging = null;
+      if (state.rev029) state.rev029.dragMarkerId = null;
+      setCanvasCursor("normal");
+      drawGraph();
+      renderDock();
     }
 
 
@@ -2650,6 +2831,7 @@
     }
 
     function drawGraph() {
+      syncRev029DViewport();
       const canvas = el.waveCanvas;
       const ctx = canvas.getContext("2d");
       const rect = canvas.getBoundingClientRect();
@@ -2936,16 +3118,19 @@
     }
 
     function handleCanvasMove(event) {
+      if (shouldIgnorePointer(event)) return;
       if (!state.plot || !state.rows.length) return;
       const pt = getCanvasPoint(event);
       const xRange = getVisibleXRange();
       const yRange = state.fullYRange || { min: 0, max: 1 };
       if (state.rev029 && state.rev029.dragMarkerId) {
+        event.preventDefault();
         setCanvasCursor("drag");
         dragRev029MarkerToPoint(pt);
         drawGraph(); renderDock(); return;
       }
       if (state.cursors.dragging) {
+        event.preventDefault();
         setCanvasCursor("drag");
         if (state.cursors.dragging === "yA" || state.cursors.dragging === "yB") {
           const yRange = state.fullYRange || { min: 0, max: 1 };
@@ -2957,6 +3142,7 @@
         drawGraph(); renderDock(); return;
       }
       if (state.drag) {
+        event.preventDefault();
         state.drag.current = pt;
         if (state.drag.kind === "pan") {
           const dx = pt.x - state.drag.last.x;
@@ -2977,10 +3163,13 @@
     }
 
     function handleCanvasDown(event) {
+      if (shouldIgnorePointer(event)) return;
       if (!state.plot || !state.rows.length) return;
       const pt = getCanvasPoint(event);
       const xRange = getVisibleXRange();
       if (!isInsidePlotPoint(pt, state.plot)) return;
+      event.preventDefault();
+      captureCanvasPointer(event);
       const markerHit = hitRev029Marker(pt);
       if (markerHit) {
         state.rev029.dragMarkerId = markerHit;
@@ -3006,15 +3195,24 @@
       }
       if (event.shiftKey || event.button === 1) {
         state.drag = { kind: "pan", start: pt, current: pt, last: pt };
+        setCanvasCursor("pan");
       } else {
         state.drag = { kind: "zoom", start: pt, current: pt };
+        setCanvasCursor("zoom");
       }
     }
 
     function handleCanvasUp(event) {
+      if (shouldIgnorePointer(event)) return;
+      releaseCanvasPointer(event);
+      const wasDraggingMarker = !!(state.rev029 && state.rev029.dragMarkerId);
       if (state.rev029) state.rev029.dragMarkerId = null;
-      if (state.cursors.dragging) { state.cursors.dragging = null; setCanvasCursor("normal"); return; }
-      if (!state.drag) return;
+      if (state.cursors.dragging) { state.cursors.dragging = null; setCanvasCursor(getCanvasHoverMode(getCanvasPoint(event))); drawGraph(); renderDock(); return; }
+      if (!state.drag) {
+        if (wasDraggingMarker) { drawGraph(); renderDock(); }
+        setCanvasCursor(getCanvasHoverMode(getCanvasPoint(event)));
+        return;
+      }
       const drag = state.drag;
       state.drag = null;
       if (drag.kind === "zoom") {
@@ -3031,12 +3229,11 @@
       drawGraph(); renderDock();
     }
 
-    function handleCanvasLeave() {
+    function handleCanvasLeave(event) {
+      if (state.drag || state.cursors.dragging || (state.rev029 && state.rev029.dragMarkerId)) return;
       setCanvasCursor("normal");
       el.hoverTip.style.display = "none";
       state.hover = null;
-      state.cursors.dragging = null;
-      if (state.rev029) state.rev029.dragMarkerId = null;
       drawGraph(); renderDock();
     }
 
@@ -3190,7 +3387,7 @@
     function buildReport() {
       const lines = [];
       lines.push("POPPE SCOPE OBD WORKSTATION - DIAGNOSTIC REVIEW REPORT");
-      lines.push("Revision: REV 029C");
+      lines.push("Revision: REV 029D");
       lines.push("Generated: " + new Date().toLocaleString() + " (" + new Date().toISOString() + ")");
       lines.push("Mode: Static post-capture CSV review. No live capture, no sensor communication, no hardware connection.");
       lines.push("");
@@ -3353,7 +3550,7 @@
 
     function downloadJsonSummary() {
       const payload = {
-        revision: "REV 029C",
+        revision: "REV 029D",
         generated: new Date().toISOString(),
         fileName: state.fileName,
         rows: state.rows.length,
